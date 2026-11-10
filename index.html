@@ -124,7 +124,7 @@
   .err{color:var(--exp);font-size:13px;min-height:18px;margin:-6px 0 6px}
 
   .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);
-    padding:9px 16px;border-radius:99px;font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:20}
+    padding:9px 16px;border-radius:18px;font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:20;max-width:88vw;width:max-content;text-align:center;line-height:1.5}
   .toast.show{opacity:1;transform:translateX(-50%)}
   .tools{display:flex;justify-content:center;gap:16px;margin-top:4px}
   .tools button{font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
@@ -171,6 +171,25 @@
   .badges button.locked{filter:grayscale(1);opacity:.3}
   .pet-wrap{display:flex;flex-wrap:wrap}
   .pet-row{display:flex;gap:14px;align-items:center;width:100%}
+  /* 鳳凰莊園 */
+  .manor{flex:0 0 calc(100% + 32px);margin:-16px -16px 0;border-radius:var(--radius) var(--radius) 0 0;overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}
+  .manor::-webkit-scrollbar{display:none}
+  .manor-in{position:relative;width:1080px;height:200px}
+  .manor-in svg{display:block}
+  .manor-in [data-plot]{cursor:pointer}
+  .manor .pet-stage{position:absolute;left:138px;bottom:22px;width:92px;height:92px}
+  .manor .xpfloat{left:184px;top:70px}
+  .manor-cap{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted);width:100%;margin-top:-4px}
+  .manor-cap span{background:var(--bg);border-radius:99px;padding:2px 9px}
+  .manor-cap .swipe{margin-left:auto;background:none;padding:0}
+  #petCard .pet-info{width:100%;flex:1 1 100%}
+  #bubble:before{left:24px;top:-6px;border:6px solid transparent;border-top:0;border-bottom-color:var(--bg)}
+  :root{--sav:#b7791f}
+  @media (prefers-color-scheme: dark){ :root{--sav:#e7b75a} }
+  .sav{color:var(--sav)}
+  .seg.three{grid-template-columns:1fr 1fr 1fr}
+  .seg button.on.s{background:var(--card);color:var(--sav);box-shadow:var(--shadow)}
 
   /* level up */
   .lvup{position:fixed;inset:0;display:grid;place-items:center;z-index:30;pointer-events:none;opacity:0;transition:opacity .25s}
@@ -269,8 +288,12 @@
   </header>
 
   <section class="card pet-card pet-wrap" id="petCard">
-    <div class="pet-row">
+    <div class="manor" id="manor"><div class="manor-in" id="manorIn">
+      <div id="manorSvg"></div>
       <div class="pet-stage" id="petStage" role="button" aria-label="摸摸寵物"></div>
+    </div></div>
+    <div class="manor-cap" id="manorCap"></div>
+    <div class="pet-row">
       <div class="pet-info">
         <div class="pet-name"><span id="petName">小錢</span><button id="renamePet">✎ 改名</button></div>
         <div class="pet-sub"><span class="lvl" id="petLvl">Lv 1</span><span id="petStageName">神秘的蛋</span>・<span id="streak">🔥 0 天</span></div>
@@ -297,6 +320,7 @@
       <div class="pill"><div class="k">收入</div><div class="v inc" id="sumInc">$0</div></div>
     </div>
     <div class="one-line" id="oneLine" hidden>💻 一次性支出另計 <b id="oneSum">$0</b><span>（不算進每月開銷和預算）</span></div>
+    <div class="one-line" id="savLine" hidden>🌾 存進糧倉 <b class="sav" id="savSum">$0</b><span>（不算開銷，結餘有扣）</span></div>
     <button class="one-line rec-line" id="recLine"></button>
     <div class="budget">
       <div class="top"><span id="budgetText">尚未設定每月預算</span><button id="setBudget">設定預算</button></div>
@@ -307,7 +331,7 @@
   <section class="card">
     <div class="sec-title">
       <h2>分類統計</h2>
-      <div class="tabs"><button data-t="expense" class="on">支出</button><button data-t="income">收入</button></div>
+      <div class="tabs"><button data-t="expense" class="on">支出</button><button data-t="income">收入</button><button data-t="saving">存錢</button></div>
     </div>
     <div id="cats"></div>
   </section>
@@ -332,9 +356,10 @@
 <!-- entry sheet -->
 <div class="sheet" id="sheet" role="dialog" aria-modal="true">
   <h3><span id="sheetTitle">記一筆</span><button id="closeSheet" aria-label="關閉">×</button></h3>
-  <div class="seg">
+  <div class="seg three" id="entrySeg">
     <button class="e on" data-type="expense">支出</button>
     <button class="i" data-type="income">收入</button>
+    <button class="s" data-type="saving">存錢</button>
   </div>
   <div class="amount-in"><span>NT$</span><input id="amt" inputmode="decimal" placeholder="0" autocomplete="off"></div>
   <div class="cats" id="catPick"></div>
@@ -349,6 +374,7 @@
     <span class="sw"></span>
     <span><b>一次性大額支出</b><small>例如換電腦、買家電。會另外統計，不算進每月開銷、預算和報表比較。</small></span>
   </label>
+  <div class="hint" id="savHint" hidden>🌾 存錢、定期定額不算開銷和預算（結餘會扣掉），會存進莊園的糧倉。</div>
   <div class="hint" id="recHint" hidden></div>
   <div class="hint" id="oneHint" hidden>💡 這筆金額比較大，要標記成一次性支出嗎？</div>
   <div class="err" id="err"></div>
@@ -360,15 +386,19 @@
 
 <!-- recurring list sheet -->
 <div class="sheet" id="rlSheet" role="dialog" aria-modal="true">
-  <h3><span>🔁 固定支出</span><button data-close aria-label="關閉">×</button></h3>
-  <p class="lead">每個月到了設定的日子，打開 App 就會自動記一筆（算進開銷和預算）。哪個月金額不一樣，直接點那筆明細修改就好。</p>
+  <h3><span>🔁 固定支出與存錢</span><button data-close aria-label="關閉">×</button></h3>
+  <p class="lead">每個月到了設定的日子，打開 App 就會自動記一筆。固定支出算進開銷和預算；固定存錢（例如定期定額）不算開銷，會存進糧倉。哪個月金額不一樣，直接點那筆明細修改就好。</p>
   <div id="recList"></div>
-  <div class="actions"><button class="btn primary" id="recAdd">＋ 新增固定支出</button></div>
+  <div class="actions"><button class="btn primary" id="recAdd">＋ 新增固定項目</button></div>
 </div>
 
 <!-- recurring edit sheet -->
 <div class="sheet" id="reSheet" role="dialog" aria-modal="true">
   <h3><span id="reTitle">新增固定支出</span><button id="reBack" aria-label="返回">×</button></h3>
+  <div class="seg" id="reSeg">
+    <button class="e on" data-k="expense">固定支出</button>
+    <button class="s" data-k="saving">固定存錢</button>
+  </div>
   <div class="amount-in"><span>NT$</span><input id="reAmt" inputmode="decimal" placeholder="每月金額" autocomplete="off"></div>
   <div class="field"><label>名稱<input id="reName" maxlength="30" placeholder="例如：房租、Netflix、電話費"></label></div>
   <div class="cats" id="reCats"></div>
@@ -386,6 +416,19 @@
   <div class="actions">
     <button class="btn danger" id="reDel" hidden>刪除</button>
     <button class="btn primary" id="reSave">儲存</button>
+  </div>
+</div>
+
+<!-- month-end sweep sheet -->
+<div class="sheet" id="swSheet" role="dialog" aria-modal="true">
+  <h3><span id="swTitle">上個月結餘</span><button id="swSkip0" aria-label="關閉">×</button></h3>
+  <p class="lead" id="swLead"></p>
+  <div class="amount-in"><span>NT$</span><input id="swAmt" inputmode="decimal" autocomplete="off"></div>
+  <p class="lead" style="margin-top:-6px">可以改成只存一部分。存進去的錢不算開銷，會讓糧倉長大。</p>
+  <div class="err" id="swErr"></div>
+  <div class="actions">
+    <button class="btn ghost" id="swSkip">這次不要</button>
+    <button class="btn primary" id="swSave">🌾 存進糧倉</button>
   </div>
 </div>
 
@@ -484,9 +527,11 @@
       ["餐飲","🍱"],["交通","🚌"],["購物","🛍️"],["日用","🧻"],["娛樂","🎮"],
       ["居住","🏠"],["醫療","💊"],["教育","📚"],["人情","🎁"],["3C","💻"],["其他","📦"]
     ],
-    income: [["薪水","💰"],["獎金","🏆"],["投資","📈"],["兼職","💼"],["其他","📦"]]
+    income: [["薪水","💰"],["獎金","🏆"],["投資","📈"],["兼職","💼"],["其他","📦"]],
+    saving: [["定期定額","📈"],["股票","💹"],["存款","🐷"],["定存","🏦"],["其他","🌾"]]
   };
-  const emojiOf = (type, cat) => (CATS[type].find(c => c[0] === cat) || ["", "📦"])[1];
+  const TYPE_NAME = { expense: "支出", income: "收入", saving: "存錢" };
+  const emojiOf = (type, cat) => ((CATS[type] || CATS.expense).find(c => c[0] === cat) || ["", "📦"])[1];
   const $ = id => document.getElementById(id);
   const fmt = n => "$" + Math.round(n).toLocaleString("zh-TW");
   const pad = n => String(n).padStart(2, "0");
@@ -498,7 +543,8 @@
     entries: new Map(),   // id -> entry
     budget: 0,
     petName: "小錢",
-    recurring: [],        // 固定支出規則
+    recurring: [],        // 固定支出／固定存錢規則
+    sweep: "",            // 月底結餘已經問到哪個月（YYYY-MM）
     ym: (() => { const d = new Date(); return [d.getFullYear(), d.getMonth()+1]; })(),
     catTab: "expense",
     q: ""
@@ -508,7 +554,7 @@
   const LS_KEY = "ledger.v1";
   const local = {
     load(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; } },
-    save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ entries:[...state.entries.values()], budget: state.budget, petName: state.petName, recurring: state.recurring })); } catch {} }
+    save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ entries:[...state.entries.values()], budget: state.budget, petName: state.petName, recurring: state.recurring, sweep: state.sweep })); } catch {} }
   };
   let cloud = null; // { entriesCol, settingsDoc }
   let readOnly = false;
@@ -522,8 +568,11 @@
     && typeof r.start === "string" && /^\d{4}-\d{2}$/.test(r.start);
   const cleanRule = r => { const o = { id: r.id, name: String(r.name || "").slice(0, 30), cat: r.cat, amount: r.amount, day: r.day, start: r.start, paused: !!r.paused };
     if (typeof r.done === "string" && /^\d{4}-\d{2}$/.test(r.done)) o.done = r.done;
+    if (r.kind === "saving") o.kind = "saving";   // 固定存錢（沒有這欄＝固定支出）
     return o; };
-  const settingsData = () => ({ budget: state.budget, petName: state.petName, recurring: state.recurring.map(cleanRule) });
+  const validYm = s => typeof s === "string" && /^\d{4}-\d{2}$/.test(s);
+  const settingsData = () => { const o = { budget: state.budget, petName: state.petName, recurring: state.recurring.map(cleanRule) };
+    if (validYm(state.sweep)) o.sweep = state.sweep; return o; };
 
   async function putEntry(e){
     state.entries.set(e.id, e); render();
@@ -565,6 +614,7 @@
     state.budget = saved.budget || 0;
     if (saved.petName) state.petName = saved.petName;
     if (Array.isArray(saved.recurring)) state.recurring = saved.recurring.filter(validRule).map(cleanRule);
+    if (validYm(saved.sweep)) state.sweep = saved.sweep;
   }
 
   // ---------- Firebase 雲端同步 ----------
@@ -610,7 +660,7 @@
     const canMigrate = !prevUid || prevUid === u.uid;   // 不把別人的本機資料搬進這個帳號
     const pre = canMigrate ? [...state.entries.values()] : [];
     const preSettings = settingsData();
-    if (!canMigrate) { state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; outbox.clear(); }
+    if (!canMigrate) { state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = ""; outbox.clear(); }
     lsSet(UID_KEY, u.uid);
     cloud = {
       entriesCol: { doc: id => ({ set: d => F.setDoc(F.doc(col, id), d), delete: () => F.deleteDoc(F.doc(col, id)) }) },
@@ -624,7 +674,7 @@
       }
     };
     let confirmed = false, settingsConfirmed = false;
-    const checkReady = () => { if (confirmed && settingsConfirmed && !cloudReady) { cloudReady = true; runRecurring(); } };
+    const checkReady = () => { if (confirmed && settingsConfirmed && !cloudReady) { cloudReady = true; afterLoad(); } };
     unsubs.push(F.onSnapshot(col, { includeMetadataChanges: true }, snap => {
       const m = new Map();
       snap.docs.forEach(d => { const x = d.data(); if (x && typeof x.amount === "number") m.set(d.id, { ...x, id: d.id }); });
@@ -649,6 +699,7 @@
       if (s.exists()) {
         const d = s.data(); state.budget = typeof d.budget === "number" ? d.budget : 0;
         if (typeof d.petName === "string" && d.petName) state.petName = d.petName.slice(0, 10);
+        if (validYm(d.sweep) && d.sweep > state.sweep) state.sweep = d.sweep;
         if (Array.isArray(d.recurring)) state.recurring = d.recurring.filter(validRule).map(cleanRule);
         else if (!s.metadata.fromCache && canMigrate && preSettings.recurring.length) { state.recurring = preSettings.recurring; cloud.settingsDoc.set(settingsData()).catch(handleWriteErr); }
         local.save(); render();
@@ -709,7 +760,7 @@
     if (!logoutArmed) { $("acLogout").textContent = "確定登出？（雲端資料會保留）"; $("acLogout").classList.add("armed"); logoutArmed = setTimeout(disarmLogout, 3000); return; }
     disarmLogout();
     try { await fb.A.signOut(fb.auth); } catch {}
-    state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = [];
+    state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = "";
     lsSet(LS_KEY, null); lsSet(UID_KEY, null); outbox.clear();
     closeSheet(); render(); toast("已登出");
   };
@@ -766,7 +817,8 @@
       else if (state.budget > 0 && monthExp > state.budget) mood = "worried";
       else mood = since === 0 ? "happy" : "normal";
     }
-    return { xp, lvl, into: rem, need: lvlNeed(lvl), streak: curStreak, best, total: entries.length, mood, since, okMonths, todayCount: byDay[today] || 0 };
+    return { xp, lvl, into: rem, need: lvlNeed(lvl), streak: curStreak, best, total: entries.length, mood, since, okMonths, todayCount: byDay[today] || 0,
+      days: days.length, monthExp };
   }
 
   function petSVG(stageIdx, mood){
@@ -924,6 +976,7 @@
     const nxt = STAGES[s + 1];
     $("nextStage").textContent = nxt ? `Lv ${nxt.min} 進化` : "已達最終型態";
     if (g.mood !== lastBubbleMood || s !== lastBubbleStage) { sayRandom(g); lastBubbleMood = g.mood; lastBubbleStage = s; }
+    renderManor(g);
     $("badges").innerHTML = BADGES.map(([em, name, ok], i) =>
       `<button data-b="${i}" class="${ok(g) ? "" : "locked"}" aria-label="${name}">${em}</button>`).join("");
     return g;
@@ -942,7 +995,8 @@
   function floatXP(text){
     const f = document.createElement("div");
     f.className = "xpfloat"; f.textContent = text;
-    $("petCard").appendChild(f);
+    $("manorIn").appendChild(f);
+    if ($("manor").scrollLeft > 60) $("manor").scrollTo({ left: 0, behavior: "smooth" });
     setTimeout(() => f.remove(), 1400);
     const st = $("petStage");
     st.classList.remove("jump"); void st.offsetWidth; st.classList.add("jump");
@@ -952,8 +1006,12 @@
     const s = stageOf(g.lvl);
     $("lvupPet").innerHTML = petSVG(s, "happy");
     $("lvupTitle").textContent = evolved ? "進化了！" : `升級到 Lv ${g.lvl}！`;
+    const key = STAGES[s].key;
     $("lvupText").textContent = evolved
-      ? (STAGES[s].key === "phoenix" ? `${state.petName} 浴火重生，化身為「浴火鳳凰」！🔥` : `${state.petName} 變成了「${STAGES[s].name}」！`)
+      ? (key === "phoenix" ? `${state.petName} 浴火重生，化身為「浴火鳳凰」！大宅掛上了金匾 🔥`
+        : key === "king" ? `${state.petName} 成為「理財鳥王」，受封領地！莊園蓋起了三合院 🏯`
+        : key === "teen" ? `${state.petName} 變成了「${STAGES[s].name}」！莊園裡蓋好竹屋了 🎋`
+        : `${state.petName} 變成了「${STAGES[s].name}」！`)
       : `${state.petName} 又長大了一點，繼續記帳吧！`;
     $("lvup").classList.add("show");
     const colors = ["#f6c445", "#f29a38", "#2f8f83", "#e2445c", "#7cc4f2", "#9b7be0"];
@@ -983,8 +1041,230 @@
   $("saveName").onclick = saveName;
   $("nameIn").addEventListener("keydown", e => { if (e.key === "Enter") saveName(); });
 
+  // ---------- 鳳凰莊園 ----------
+  // 所有等級都從記帳紀錄即時算出來，不另外存；建築不會降級。
+  const lvBy = (v, th) => th.filter(t => v >= t).length;
+  const M_TH = { house: [7, 16, 21], field: [30, 90, 180, 365], pond: [7, 21, 60, 100], granary: [50000, 100000, 300000] };
+  const sceneNow = () => window.__ledgerNow ? new Date(window.__ledgerNow) : new Date();   // 測試用可覆寫時間
+  function manorState(g){
+    const entries = [...state.entries.values()];
+    const saved = entries.filter(e => e.type === "saving").reduce((a, e) => a + e.amount, 0);
+    const d = sceneNow(), mo = d.getMonth() + 1, h = d.getHours();
+    const ym = `${d.getFullYear()}-${pad(mo)}`;
+    return {
+      house: 1 + lvBy(g.lvl, M_TH.house), field: lvBy(g.days, M_TH.field), pond: lvBy(g.best, M_TH.pond),
+      granary: saved > 0 ? 1 + lvBy(saved, M_TH.granary) : 0, lanterns: g.okMonths, saved, g,
+      thisMonth: entries.some(e => e.date && e.date.startsWith(ym)),
+      over: state.budget > 0 && g.monthExp > state.budget,
+      season: mo >= 3 && mo <= 5 ? "spring" : mo >= 6 && mo <= 8 ? "summer" : mo >= 9 && mo <= 11 ? "autumn" : "winter",
+      time: h >= 6 && h < 17 ? "day" : h >= 17 && h < 19 ? "dusk" : "night"
+    };
+  }
+  const MW = 1080, MH = 200, GY = 178;
+  const PLOT = { gate: [0, 130], house: [130, 240], field: [370, 240], pond: [610, 190], granary: [800, 180], frontier: [980, 100] };
+  const SEASON = {
+    spring: { ground: "#a8d67c", hill: "#8cc56b", far: "#c3e2ae", tree: "#7cbf5a", road: "#ead6a8" },
+    summer: { ground: "#8cc366", hill: "#67ac4b", far: "#a9d690", tree: "#4f9a3a", road: "#ead6a8" },
+    autumn: { ground: "#c9c87a", hill: "#d6a457", far: "#e8d3a2", tree: "#e08a3a", road: "#e6cf9c" },
+    winter: { ground: "#e8eef0", hill: "#cfd9dd", far: "#e2e8eb", tree: "#a4b6bb", road: "#d8d2c4" }
+  };
+  const txt = (x, y, s, size = 11, fill = "#4a3216", w = 400) =>
+    `<text x="${x}" y="${y}" font-size="${size}" font-weight="${w}" fill="${fill}" text-anchor="middle" font-family="inherit">${esc(s)}</text>`;
+
+  function lockedPlot(x0, w, title, line){
+    let s = `<rect x="${x0 + 12}" y="150" width="${w - 24}" height="28" rx="4" fill="#b99b6b" opacity=".45"/>`;
+    for (let x = x0 + 12; x <= x0 + w - 12; x += 19) s += `<rect x="${x - 1.5}" y="152" width="3" height="27" fill="#9a7346"/>`;
+    s += `<rect x="${x0 + 10}" y="158" width="${w - 20}" height="2.5" fill="#9a7346"/><rect x="${x0 + 10}" y="168" width="${w - 20}" height="2.5" fill="#9a7346"/>`;
+    const cx = x0 + w / 2;
+    s += `<rect x="${cx - 2}" y="132" width="4" height="30" fill="#7a5530"/>
+      <rect x="${cx - 74}" y="104" width="148" height="34" rx="4" fill="#ecd29b" stroke="#8a6236" stroke-width="1.5"/>
+      ${txt(cx, 118, "🔒 " + title, 12, "#4a3216", 700)}${txt(cx, 132, line, 11)}`;
+    return s;
+  }
+  function snowCap(points){ return `<polyline points="${points}" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`; }
+
+  function sceneSVG(m){
+    const P = SEASON[m.season], night = m.time === "night", winter = m.season === "winter";
+    const sky = m.over ? { day: "#c3cad0", dusk: "#d9bba4", night: "#1a2236" }[m.time] : { day: "#bfe3f5", dusk: "#f6c99c", night: "#1f2b4d" }[m.time];
+    let s = "", lights = "";
+    // 天空、遠山、地面、道路
+    s += `<rect width="${MW}" height="${MH}" fill="${sky}"/>`;
+    if (night) {
+      for (let i = 0; i < 40; i++) { const x = (i * 97 + 31) % MW, y = (i * 53 + 7) % 80 + 6; lights += `<circle cx="${x}" cy="${y}" r="${i % 3 ? .9 : 1.4}" fill="#fff" opacity=".85"/>`; }
+      lights += `<circle cx="66" cy="40" r="15" fill="#f6f1cf"/><circle cx="73" cy="35" r="13" fill="${sky}"/>`;
+    } else if (!m.over) s += `<circle cx="66" cy="${m.time === "dusk" ? 64 : 40}" r="17" fill="${m.time === "dusk" ? "#ff9f4a" : "#ffd75e"}"/>`;
+    const cloud = (x, y, k, c) => `<g fill="${c}"><ellipse cx="${x}" cy="${y}" rx="${22 * k}" ry="${9 * k}"/><ellipse cx="${x + 14 * k}" cy="${y - 6 * k}" rx="${14 * k}" ry="${9 * k}"/><ellipse cx="${x - 12 * k}" cy="${y - 3 * k}" rx="${11 * k}" ry="${7 * k}"/></g>`;
+    if (m.over) [[90, 34, 1.2], [300, 40, 1.5], [520, 30, 1.3], [760, 38, 1.4], [980, 30, 1.2]].forEach(([x, y, k]) => s += cloud(x, y, k, night ? "#2c3550" : "#8f99a1"));
+    else if (!night) [[150, 30, 1], [560, 44, .9], [880, 26, 1.1]].forEach(([x, y, k]) => s += cloud(x, y, k, "#ffffff"));
+    s += `<path d="M0 104 L60 82 L130 98 L210 70 L300 96 L380 76 L470 100 L560 72 L650 94 L740 68 L830 96 L920 78 L1010 98 L1080 84 L1080 130 L0 130Z" fill="${P.far}"/>`;
+    s += `<path d="M0 120 Q120 100 240 116 T480 112 T720 118 T960 108 T1200 116 L1080 140 L0 140Z" fill="${P.hill}"/>`;
+    s += `<rect y="124" width="${MW}" height="${MH - 124}" fill="${P.ground}"/>`;
+    s += `<rect y="182" width="${MW}" height="18" fill="${P.road}"/>`;
+    for (let x = 14; x < MW; x += 46) s += `<rect x="${x}" y="190" width="14" height="3" rx="1.5" fill="#fff" opacity=".35"/>`;
+    // 點綴的樹
+    const tree = x => `<rect x="${x - 2}" y="150" width="4" height="28" fill="#7a5530"/><circle cx="${x}" cy="146" r="13" fill="${P.tree}"/><circle cx="${x - 8}" cy="154" r="9" fill="${P.tree}"/>${winter ? `<path d="M${x - 11} 140 Q${x} 128 ${x + 11} 140" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>` : ""}`;
+    [124, 366, 604, 796].forEach(x => s += tree(x));
+
+    // 大門（牌樓）
+    s += `<rect x="28" y="92" width="9" height="86" fill="#b7382b"/><rect x="93" y="92" width="9" height="86" fill="#b7382b"/>
+      <rect x="18" y="98" width="94" height="8" fill="#c8432f"/><polygon points="12,98 118,98 108,84 22,84" fill="#3d3d44"/>
+      <path d="M12 98 Q8 92 14 88 M118 98 Q122 92 116 88" stroke="#3d3d44" stroke-width="3" fill="none"/>
+      <rect x="40" y="108" width="50" height="17" rx="2" fill="#f3d27a" stroke="#a87a1a"/>${txt(65, 121, "鳳凰莊園", 11, "#7a2a14", 700)}`;
+    if (winter) s += snowCap("22,85 108,85");
+
+    // 鳥王大宅：鳥巢一直都在，小錢站在上面
+    s += `<ellipse cx="184" cy="176" rx="36" ry="9" fill="#8b5a2b"/>`;
+    for (let i = 0; i < 9; i++) s += `<path d="M${152 + i * 8} ${170 + (i % 2) * 3} l14 ${i % 2 ? -4 : 4}" stroke="#b07a42" stroke-width="2" stroke-linecap="round"/>`;
+    const win = (x, y) => { s += `<rect x="${x}" y="${y}" width="14" height="12" fill="#5d3f26"/>`; if (night || m.time === "dusk") lights += `<rect x="${x}" y="${y}" width="14" height="12" fill="#ffd36b"/><circle cx="${x + 7}" cy="${y + 6}" r="14" fill="#ffc94d" opacity=".22"/>`; };
+    if (m.house === 2) {
+      s += `<rect x="258" y="134" width="84" height="44" fill="#e2cc86"/>`;
+      for (let x = 264; x < 342; x += 8) s += `<rect x="${x}" y="134" width="1.5" height="44" fill="#c4a65a"/>`;
+      s += `<rect x="292" y="150" width="17" height="28" fill="#8a5a2b"/><polygon points="248,136 300,106 352,136" fill="#b98a3c"/>
+        <path d="M256 132 L300 108 L344 132" stroke="#9c7330" stroke-width="2" fill="none"/>`;
+      win(268, 146);
+      if (winter) s += snowCap("252,134 300,108 348,134");
+    } else if (m.house >= 3) {
+      s += `<rect x="238" y="142" width="26" height="36" fill="#c65b3f"/><polygon points="234,144 268,144 262,132 240,132" fill="#3e3e46"/>
+        <rect x="344" y="142" width="26" height="36" fill="#c65b3f"/><polygon points="340,144 374,144 368,132 346,132" fill="#3e3e46"/>
+        <rect x="262" y="126" width="84" height="52" fill="#cf6446"/><rect x="262" y="172" width="84" height="6" fill="#a9472f"/>
+        <polygon points="250,130 358,130 346,110 262,110" fill="#3e3e46"/>
+        <path d="M250 130 Q244 124 248 118 M358 130 Q364 124 360 118" stroke="#3e3e46" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <rect x="295" y="148" width="18" height="30" fill="#6b3a22"/><rect x="303.5" y="148" width="1" height="30" fill="#4a2615"/>`;
+      win(272, 144); win(322, 144);
+      if (m.house >= 4) s += `<rect x="288" y="132" width="32" height="11" rx="1.5" fill="#f2c230" stroke="#b8860b"/>${txt(304, 141, "鳳棲", 9, "#7a3b00", 700)}`;
+      if (winter) s += snowCap("264,111 344,111") + snowCap("242,133 260,133") + snowCap("348,133 366,133");
+    }
+
+    // 稻田：累計記帳天數
+    {
+      const [x0, w] = PLOT.field;
+      if (!m.field) s += lockedPlot(x0, w, "稻田", `累計記帳 ${m.g.days} / 30 天`);
+      else {
+        const n = [1, 2, 4, 4][m.field - 1];
+        const slots = [[0, 1], [1, 1], [0, 0], [1, 0]];
+        const water = m.thisMonth ? (winter ? "#cfe3ea" : "#8fc7df") : "#b99a68";
+        const crop = { spring: "#79c24f", summer: "#3f9a34", autumn: "#e0b43a", winter: "#a88b5c" }[m.season];
+        const tall = { spring: 6, summer: 12, autumn: 14, winter: 4 }[m.season] + (m.field >= 4 ? 3 : 0);
+        slots.forEach(([c, r], i) => {
+          const tx = x0 + 10 + c * 112, ty = r ? 154 : 130, th = r ? 24 : 20;
+          if (i >= n) { s += `<rect x="${tx}" y="${ty}" width="104" height="${th}" rx="3" fill="#000" opacity=".05"/>`; return; }
+          s += `<rect x="${tx}" y="${ty}" width="104" height="${th}" rx="3" fill="#7a5530"/><rect x="${tx + 2}" y="${ty + 2}" width="100" height="${th - 4}" rx="2" fill="${water}"/>`;
+          for (let k = 0; k < 9; k++) {
+            const cx = tx + 8 + k * 11, base = ty + th - 3;
+            s += `<path d="M${cx} ${base} l-3 ${-tall} M${cx} ${base} l0 ${-tall - 2} M${cx} ${base} l3 ${-tall}" stroke="${crop}" stroke-width="1.8" stroke-linecap="round"/>`;
+            if (m.season === "autumn") s += `<circle cx="${cx}" cy="${base - tall - 2}" r="2" fill="#f0c94a"/>`;
+          }
+          if (m.over) [20, 58, 88].forEach(dx => s += `<path d="M${tx + dx} ${ty + th - 2} l-4 -9 M${tx + dx} ${ty + th - 2} l1 -11 M${tx + dx} ${ty + th - 2} l5 -8" stroke="#2f5d2a" stroke-width="2" stroke-linecap="round"/>`);
+        });
+        if (m.field >= 4) s += `<rect x="${x0 + 119}" y="128" width="3" height="50" fill="#7a5530"/><rect x="${x0 + 106}" y="140" width="29" height="3" fill="#7a5530"/>
+          <circle cx="${x0 + 120.5}" cy="128" r="7" fill="#f0d7a0"/><polygon points="${x0 + 110},126 ${x0 + 131},126 ${x0 + 120.5},115" fill="#c8932f"/>
+          <rect x="${x0 + 112}" y="142" width="17" height="16" fill="#3f7fb8"/>`;
+      }
+    }
+
+    // 荷花池：最長連續記帳天數
+    {
+      const [x0, w] = PLOT.pond, cx = x0 + w / 2;
+      if (!m.pond) s += lockedPlot(x0, w, "荷花池", `最長連續記帳 ${m.g.best} / 7 天`);
+      else {
+        s += `<ellipse cx="${cx}" cy="160" rx="82" ry="20" fill="#8c7a5c"/><ellipse cx="${cx}" cy="159" rx="76" ry="16" fill="${winter ? "#d6ecf4" : "#7fc1e3"}"/>`;
+        [[-70, 168], [-30, 176], [20, 177], [64, 170]].forEach(([dx, y]) => s += `<ellipse cx="${cx + dx}" cy="${y}" rx="9" ry="5" fill="#a8a29a"/>`);
+        if (m.pond >= 2) [[-45, 154], [-12, 162], [26, 152], [52, 161], [-58, 162]].forEach(([dx, y]) => s += `<ellipse cx="${cx + dx}" cy="${y}" rx="10" ry="4" fill="${winter ? "#9a8f6a" : "#4f9a46"}"/>`);
+        if (m.pond >= 3 && !winter) [[-45, 150], [26, 148], [52, 157]].forEach(([dx, y]) => s +=
+          `<g transform="translate(${cx + dx} ${y})"><path d="M0 0 C-6 -2 -6 -9 0 -12 C6 -9 6 -2 0 0Z" fill="#f29bbd"/><path d="M0 0 C-9 -1 -10 -6 -7 -9 C-3 -6 -1 -3 0 0Z M0 0 C9 -1 10 -6 7 -9 C3 -6 1 -3 0 0Z" fill="#ec7aa5"/></g>`);
+        if (m.pond >= 4) [[-22, 158, 1], [10, 166, -1]].forEach(([dx, y, d]) => s +=
+          `<g transform="translate(${cx + dx} ${y}) scale(${d} 1)"><ellipse rx="8" ry="3.4" fill="#f07c2c"/><path d="M-7 0 L-13 -4 L-12 4Z" fill="#f07c2c"/><circle cx="2" cy="-1" r="1.6" fill="#fff"/></g>`);
+      }
+    }
+
+    // 糧倉：累計存錢金額
+    {
+      const [x0, w] = PLOT.granary;
+      if (!m.granary) s += lockedPlot(x0, w, "糧倉", "記下第一筆存錢就會蓋好");
+      else {
+        const barn = (bx, bw, bh) => {
+          const top = GY - bh;
+          s += `<rect x="${bx}" y="${top}" width="${bw}" height="${bh}" fill="#b5652b"/><polygon points="${bx - 6},${top + 2} ${bx + bw + 6},${top + 2} ${bx + bw / 2},${top - bw * .38}" fill="#7a3b1a"/>
+            <rect x="${bx + bw / 2 - 11}" y="${GY - 26}" width="22" height="26" fill="#e9d7b0"/><path d="M${bx + bw / 2 - 11} ${GY - 26} l22 26 M${bx + bw / 2 + 11} ${GY - 26} l-22 26" stroke="#b5652b" stroke-width="2"/>`;
+          if (winter) s += snowCap(`${bx - 2},${top + 1} ${bx + bw / 2},${top - bw * .38 + 2} ${bx + bw + 2},${top + 1}`);
+        };
+        if (m.granary === 1) barn(x0 + 50, 64, 40);
+        else barn(x0 + 16, 88, 52);
+        if (m.granary === 2) s += `<rect x="${x0 + 116}" y="120" width="26" height="58" rx="4" fill="#d3d1c7"/><ellipse cx="${x0 + 129}" cy="120" rx="13" ry="6" fill="#888780"/>
+          <rect x="${x0 + 116}" y="150" width="26" height="28" fill="#f0c94a" opacity=".85"/>`;
+        if (m.granary >= 3) {
+          s += `<rect x="${x0 + 116}" y="140" width="54" height="38" fill="#9aa3a8"/><polygon points="${x0 + 112},142 ${x0 + 174},142 ${x0 + 166},130 ${x0 + 120},130" fill="#5f6a70"/>
+            <circle cx="${x0 + 143}" cy="160" r="10" fill="#f2c230" stroke="#b8860b" stroke-width="2"/><rect x="${x0 + 139}" y="156" width="8" height="8" fill="#b8860b"/>`;
+          if (winter) s += snowCap(`${x0 + 121},131 ${x0 + 165},131`);
+        }
+        if (m.granary >= 4) {
+          lights += `<circle cx="${x0 + 143}" cy="158" r="34" fill="#ffd75e" opacity=".28"/>`;
+          [[-28, -20], [26, -26], [32, 8], [-30, 10]].forEach(([dx, dy]) => lights += `<path d="M${x0 + 143 + dx} ${158 + dy} l2 -6 l2 6 l6 2 l-6 2 l-2 6 l-2 -6 l-6 -2Z" fill="#fff3b0"/>`);
+        }
+      }
+    }
+
+    // 未開拓的土地
+    {
+      const [x0, w] = PLOT.frontier;
+      for (let i = 0; i < 9; i++) { const x = x0 + 8 + i * 11; s += `<rect x="${x}" y="${96 + (i % 3) * 6}" width="4" height="${82 - (i % 3) * 6}" fill="${winter ? "#8fae9a" : "#4f9a3a"}"/><path d="M${x + 2} ${110 + i % 4 * 8} l10 -6" stroke="${winter ? "#8fae9a" : "#5fb046"}" stroke-width="3" stroke-linecap="round"/>`; }
+      s += `<ellipse cx="${x0 + 50}" cy="150" rx="70" ry="22" fill="#fff" opacity=".75"/><ellipse cx="${x0 + 30}" cy="128" rx="40" ry="14" fill="#fff" opacity=".6"/>
+        <rect x="${x0 + 48}" y="150" width="4" height="28" fill="#7a5530"/><rect x="${x0 + 8}" y="132" width="84" height="22" rx="4" fill="#ecd29b" stroke="#8a6236" stroke-width="1.5"/>${txt(x0 + 50, 147, "未開拓的土地", 11, "#4a3216", 700)}`;
+    }
+
+    // 紅燈籠：守住預算一個月掛一盞
+    if (m.lanterns) {
+      const glow = night || m.time === "dusk"; let lan = "";
+      const n = Math.min(m.lanterns, 11), x1 = 140 + n * 80;
+      let rope = "M140 10";
+      for (let i = 0; i < n; i++) rope += ` Q${180 + i * 80} 26 ${220 + i * 80} 10`;
+      lan += `<path d="${rope}" stroke="${night ? "#a88a6a" : "#6b4a2a"}" stroke-width="1.5" fill="none"/><rect x="${x1 - 2}" y="4" width="4" height="10" fill="#6b4a2a"/><rect x="138" y="4" width="4" height="10" fill="#6b4a2a"/>`;
+      for (let i = 0; i < n; i++) {
+        const x = 180 + i * 80;
+        if (glow) lan += `<circle cx="${x}" cy="29" r="17" fill="#ffb347" opacity=".3"/>`;
+        lan += `<g transform="translate(${x} 18)"><rect x="-6" y="0" width="12" height="3" fill="#d9a400"/><ellipse cy="11" rx="9" ry="9" fill="#d8352a"/>
+          <path d="M-4 3 Q-7 11 -4 19 M4 3 Q7 11 4 19" stroke="#b02a20" fill="none"/><rect x="-5" y="18" width="10" height="3" fill="#d9a400"/><path d="M0 21 v7" stroke="#d9a400" stroke-width="1.5"/></g>`;
+        if (glow) lan += `<ellipse cx="${x}" cy="29" rx="4" ry="6" fill="#ffd27a" opacity=".85"/>`;
+      }
+      if (night) lights += lan; else s += lan;
+    }
+
+    const shade = night ? `<rect width="${MW}" height="${MH}" fill="#0b1633" opacity=".42"/>` : m.time === "dusk" ? `<rect width="${MW}" height="${MH}" fill="#c0603a" opacity=".1"/>` : "";
+    const hits = Object.entries(PLOT).map(([k, [x, w]]) => `<rect data-plot="${k}" x="${x}" y="80" width="${w}" height="${MH - 80}" fill="transparent"/>`).join("")
+      + (m.lanterns ? `<rect data-plot="lantern" x="130" y="0" width="${Math.min(m.lanterns, 11) * 80 + 20}" height="44" fill="transparent"/>` : "");
+    return `<svg width="${MW}" height="${MH}" viewBox="0 0 ${MW} ${MH}" role="img" aria-label="鳳凰莊園">${s}${shade}${lights}${hits}</svg>`;
+  }
+
+  const HOUSE_NAMES = ["鳥巢", "竹屋", "三合院", "掛金匾的三合院"];
+  function plotInfo(k, m){
+    const nm = state.petName;
+    if (k === "gate") return `🏮 歡迎來到鳳凰莊園！往右滑可以逛整座莊園，點建築看升級條件`;
+    if (k === "house") return `🏠 鳥王大宅：${HOUSE_NAMES[m.house - 1]}` + (m.house < 4 ? `。${nm}升到 Lv ${M_TH.house[m.house - 1]} 會${["蓋成竹屋", "受封領地、蓋起三合院", "化身鳳凰、掛上金匾"][m.house - 1]}` : "。已經是最高級了 ✨");
+    if (k === "field") return `🌾 稻田 Lv ${m.field}：累計記帳 ${m.g.days} 天` + (m.field < 4 ? `。滿 ${M_TH.field[m.field]} 天升級` : "。稻浪一片，滿級了！") + (m.over ? "（這個月超支，田裡長雜草了）" : m.thisMonth ? "" : "（這個月還沒記帳，田有點乾）");
+    if (k === "pond") return `🪷 荷花池 Lv ${m.pond}：最長連續記帳 ${m.g.best} 天` + (m.pond < 4 ? `。破紀錄到 ${M_TH.pond[m.pond]} 天升級` : "。錦鯉都來了，滿級！");
+    if (k === "granary") return m.granary ? `🏦 糧倉 Lv ${m.granary}：累計存了 ${fmt(m.saved)}` + (m.granary < 4 ? `。存到 ${fmt(M_TH.granary[m.granary - 1])} 升級` : "。金庫滿到發光了！") : "🏦 糧倉：記一筆「存錢」（或設定固定存錢）就會蓋好";
+    if (k === "lantern") return `🏮 已掛 ${m.lanterns} 盞燈籠：每守住一個月的預算，就多掛一盞`;
+    return "🎋 更多建築（市集、學堂、藥草園、鳳凰神殿）還在開發中，敬請期待！";
+  }
+  let manorKey = "", manorNow = null;
+  function renderManor(g){
+    const m = manorState(g); manorNow = m;
+    const svg = sceneSVG(m);
+    if (svg !== manorKey) { $("manorSvg").innerHTML = svg; manorKey = svg; }
+    $("manorCap").innerHTML = `<span>🏮 ${m.lanterns} 盞</span><span class="sav">🌾 ${m.saved ? "已存 " + fmt(m.saved) : "糧倉未蓋"}</span>`
+      + (m.over ? `<span>🌧️ 本月超支</span>` : "") + `<span class="swipe">滑動逛莊園 →</span>`;
+  }
+  $("manorSvg").onclick = e => { const p = e.target.closest("[data-plot]"); if (p && manorNow) toast(plotInfo(p.dataset.plot, manorNow), 3200); };
+  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary]; };
+  function manorNews(a, b){
+    if (!a[2] && b[2]) return "🏦 莊園蓋好糧倉了！往右滑去看看 🎉";
+    const names = ["🌾 稻田", "🪷 荷花池", "🏦 糧倉"];
+    const up = names.filter((_, i) => b[i] > a[i]);
+    return up.length ? `${up.join("、")}升級了！往右滑去看看 🎉` : "";
+  }
+
   // ---------- render ----------
-  const ymKey = () => `${state.ym[0]}-${pad(state.ym[1])}`;
+  const ymKey =() => `${state.ym[0]}-${pad(state.ym[1])}`;
   function monthEntries(){
     const k = ymKey();
     return [...state.entries.values()].filter(e => e.date && e.date.startsWith(k));
@@ -995,21 +1275,25 @@
     if (reportOpen) renderReport();
     $("monthLabel").textContent = `${state.ym[0]} 年 ${state.ym[1]} 月`;
     const list = monthEntries();
-    let exp = 0, inc = 0, one = 0;
-    list.forEach(e => e.type === "income" ? inc += e.amount : e.oneoff ? one += e.amount : exp += e.amount);
+    let exp = 0, inc = 0, one = 0, sav = 0;
+    list.forEach(e => e.type === "income" ? inc += e.amount : e.type === "saving" ? sav += e.amount : e.oneoff ? one += e.amount : exp += e.amount);
     $("sumExp").textContent = fmt(exp);
     $("sumInc").textContent = fmt(inc);
     $("oneLine").hidden = !one;
     $("oneSum").textContent = fmt(one);
-    const bal = inc - exp - one;
+    $("savLine").hidden = !sav;
+    $("savSum").textContent = fmt(sav);
+    const bal = inc - exp - one - sav;
     $("bal").textContent = (bal < 0 ? "-" : "") + fmt(Math.abs(bal));
     $("bal").className = "bal " + (bal < 0 ? "exp" : "");
 
     // 固定支出
     const act = state.recurring.filter(r => !r.paused);
+    const actE = act.filter(r => r.kind !== "saving"), actS = act.filter(r => r.kind === "saving");
+    const sumR = a => fmt(a.reduce((t, r) => t + r.amount, 0));
     $("recLine").innerHTML = state.recurring.length
-      ? `🔁 固定支出 每月 <b>${fmt(act.reduce((a, r) => a + r.amount, 0))}</b><span>${act.length} 項${act.length < state.recurring.length ? `・${state.recurring.length - act.length} 項暫停` : ""}</span><span class="go">›</span>`
-      : `🔁 設定固定支出<span>房租、訂閱到期自動記帳</span><span class="go">›</span>`;
+      ? `🔁 固定${actE.length ? `支出 <b>${sumR(actE)}</b>` : ""}${actE.length && actS.length ? "・" : ""}${actS.length ? `存錢 <b class="sav">${sumR(actS)}</b>` : ""}${!act.length ? "項目" : ""}<span>${act.length} 項${act.length < state.recurring.length ? `・${state.recurring.length - act.length} 項暫停` : ""}</span><span class="go">›</span>`
+      : `🔁 設定固定支出／存錢<span>房租、定期定額自動記帳</span><span class="go">›</span>`;
 
     // budget
     const bar = $("budgetBar");
@@ -1039,10 +1323,10 @@
     $("cats").innerHTML = rows.length ? rows.map(([c, v]) => `
       <div class="cat-row">
         <span class="em">${emojiOf(t, c)}</span><span>${esc(c)}</span>
-        <div class="bar"><i style="width:${(v / max * 100).toFixed(1)}%;background:${t === "expense" ? "var(--exp)" : "var(--inc)"}"></i></div>
+        <div class="bar"><i style="width:${(v / max * 100).toFixed(1)}%;background:${t === "expense" ? "var(--exp)" : t === "saving" ? "var(--sav)" : "var(--inc)"}"></i></div>
         <span class="amt">${fmt(v)}<small>${Math.round(v / total * 100)}%</small></span>
       </div>`).join("")
-      : `<div class="empty">這個月還沒有${t === "expense" ? "支出" : "收入"}紀錄</div>`;
+      : `<div class="empty">這個月還沒有${TYPE_NAME[t]}紀錄</div>`;
 
     // list
     const q = state.q.trim().toLowerCase();
@@ -1059,14 +1343,15 @@
       const dt = new Date(d + "T00:00:00");
       const dayExp = items.filter(e => e.type === "expense").reduce((a, e) => a + e.amount, 0);
       const dayInc = items.filter(e => e.type === "income").reduce((a, e) => a + e.amount, 0);
-      const sum = [dayExp ? `支 ${fmt(dayExp)}` : "", dayInc ? `收 ${fmt(dayInc)}` : ""].filter(Boolean).join("　");
+      const daySav = items.filter(e => e.type === "saving").reduce((a, e) => a + e.amount, 0);
+      const sum = [dayExp ? `支 ${fmt(dayExp)}` : "", dayInc ? `收 ${fmt(dayInc)}` : "", daySav ? `存 ${fmt(daySav)}` : ""].filter(Boolean).join("　");
       return `<div class="day">
         <div class="day-h"><span>${dt.getMonth()+1}/${dt.getDate()}（${WEEK[dt.getDay()]}）${d === todayStr() ? "・今天" : ""}</span><span>${sum}</span></div>
         ${items.map(e => `
           <button class="item" data-id="${esc(e.id)}">
             <span class="ic">${emojiOf(e.type, e.cat)}</span>
-            <span class="mid"><div class="c">${esc(e.cat)}${e.oneoff ? '<span class="tag">一次性</span>' : ""}${e.rec ? '<span class="tag">🔁 固定</span>' : ""}</div>${e.note ? `<div class="n">${esc(e.note)}</div>` : ""}</span>
-            <span class="a ${e.type === "income" ? "inc" : "exp"}">${e.type === "income" ? "+" : "-"}${fmt(e.amount).slice(1)}</span>
+            <span class="mid"><div class="c">${esc(e.cat)}${e.oneoff ? '<span class="tag">一次性</span>' : ""}${e.rec ? '<span class="tag">🔁 固定</span>' : ""}${e.type === "saving" ? '<span class="tag">🌾 存錢</span>' : ""}</div>${e.note ? `<div class="n">${esc(e.note)}</div>` : ""}</span>
+            <span class="a ${e.type === "income" ? "inc" : e.type === "saving" ? "sav" : "exp"}">${e.type === "income" ? "+" : e.type === "saving" ? "→" : "-"}${fmt(e.amount).slice(1)}</span>
           </button>`).join("")}
       </div>`;
     }).join("");
@@ -1099,13 +1384,14 @@
   // entry form
   const form = { id: null, type: "expense", cat: "餐飲" };
   function paintType(){
-    document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.type === form.type));
+    document.querySelectorAll("#entrySeg button").forEach(b => b.classList.toggle("on", b.dataset.type === form.type));
     $("oneoffRow").hidden = form.type !== "expense";
+    $("savHint").hidden = form.type !== "saving" || !$("recHint").hidden;
     updateHint();
     $("catPick").innerHTML = CATS[form.type].map(([c, em]) =>
       `<button data-c="${c}" class="${c === form.cat ? "on" : ""}"><b>${em}</b>${c}</button>`).join("");
   }
-  document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#entrySeg button").forEach(b => b.onclick = () => {
     if (form.type === b.dataset.type) return;
     form.type = b.dataset.type; form.cat = CATS[form.type][0][0]; paintType();
   });
@@ -1131,7 +1417,7 @@
       $("sheetTitle").textContent = "編輯紀錄"; $("delBtn").hidden = false;
       const rule = entry.rec && state.recurring.find(r => r.id === entry.rec);
       $("recHint").hidden = !entry.rec;
-      $("recHint").textContent = entry.rec ? `🔁 這筆是固定支出${rule ? `「${rule.name}」` : ""}自動記的。在這裡修改或刪除只影響這一筆，不會再自動補回來。` : "";
+      $("recHint").textContent = entry.rec ? `🔁 這筆是固定${entry.type === "saving" ? "存錢" : "支出"}${rule ? `「${rule.name}」` : ""}自動記的。在這裡修改或刪除只影響這一筆，不會再自動補回來。` : "";
     } else {
       // default date: today if viewing current month, else 1st of viewed month
       const t = todayStr();
@@ -1165,7 +1451,7 @@
       createdAt: old ? old.createdAt : Date.now()
     };
     if (old && old.rec) e.rec = old.rec;
-    const g0 = computeGame();
+    const g0 = computeGame(), m0 = manorLevels();
     putEntry(e);
     closeSheet();
     // jump to the month of the saved entry
@@ -1180,7 +1466,9 @@
         if (g1.lvl > g0.lvl) setTimeout(() => celebrate(g1, stageOf(g1.lvl) > stageOf(g0.lvl)), 700);
       }, 250);
     }
-    toast(old ? "已更新" : "已記錄 " + (e.type === "income" ? "+" : "-") + fmt(e.amount).slice(1));
+    toast(old ? "已更新" : e.type === "saving" ? "🌾 已存進糧倉 " + fmt(e.amount) : "已記錄 " + (e.type === "income" ? "+" : "-") + fmt(e.amount).slice(1));
+    const news = manorNews(m0, manorLevels());
+    if (news) setTimeout(() => toast(news, 3000), 1900);
   }
   $("saveBtn").onclick = save;
   ["amt", "note"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") save(); }));
@@ -1218,7 +1506,7 @@
     const rows = monthEntries().sort((a, b) => a.date.localeCompare(b.date));
     const q = s => `"${String(s).replace(/"/g, '""')}"`;
     const lines = ["日期,類型,分類,金額,備註,一次性", ...rows.map(e =>
-      [e.date, e.type === "income" ? "收入" : "支出", q(e.cat), e.amount, q(e.note || ""), e.oneoff ? "是" : ""].join(","))];
+      [e.date, TYPE_NAME[e.type] || "支出", q(e.cat), e.amount, q(e.note || ""), e.oneoff ? "是" : ""].join(","))];
     $("csv").value = lines.join("\n");
     openSheet($("xSheet"));
   };
@@ -1236,6 +1524,7 @@
     const list = [...state.entries.values()].filter(e => e.date && e.date.startsWith(k) && (!dayLimit || +e.date.slice(8, 10) <= dayLimit));
     const exp = list.filter(e => e.type === "expense" && !e.oneoff), inc = list.filter(e => e.type === "income");
     const oneoff = list.filter(e => e.type === "expense" && e.oneoff);
+    const savSum = list.filter(e => e.type === "saving").reduce((s, e) => s + e.amount, 0);
     const recSum = exp.filter(e => e.rec).reduce((s, e) => s + e.amount, 0);
     const sum = a => a.reduce((s, e) => s + e.amount, 0);
     const byCat = {};
@@ -1244,7 +1533,7 @@
     const daily = Array.from({ length: daysIn }, () => ({ amt: 0, n: 0 }));
     exp.forEach(e => { const d = +e.date.slice(8, 10); if (daily[d - 1]) { daily[d - 1].amt += e.amount; daily[d - 1].n++; } });
     const recDays = new Set(list.map(e => e.date)).size;
-    return { y, m, list, exp, recSum, expSum: sum(exp), oneoff, oneSum: sum(oneoff), incSum: sum(inc), byCat, daily, daysIn, recDays };
+    return { y, m, list, exp, recSum, savSum, expSum: sum(exp), oneoff, oneSum: sum(oneoff), incSum: sum(inc), byCat, daily, daysIn, recDays };
   }
   function barPath(x, y, w, h, r){
     if (h <= 0) return "";
@@ -1270,7 +1559,7 @@
     const prevFull = monthStats(addMonth(state.ym, -1));
     const prev = isThisMonth ? monthStats(addMonth(state.ym, -1), daysPassed) : prevFull;   // 本月只跟上個月「同期」比
     const avg = cur.expSum / daysPassed;
-    const bal = cur.incSum - cur.expSum - cur.oneSum;
+    const bal = cur.incSum - cur.expSum - cur.oneSum - cur.savSum;
     const g = computeGame();
     reportSamePeriod = isThisMonth;
 
@@ -1318,6 +1607,8 @@
           <div class="pill"><div class="k">收入</div><div class="v">${fmt(cur.incSum)}</div></div>
           <div class="pill"><div class="k">結餘</div><div class="v">${bal < 0 ? "-" : ""}${fmt(Math.abs(bal))}</div></div>
           <div class="pill"><div class="k">平均每天花</div><div class="v">${fmt(avg || 0)}</div></div>
+          <div class="pill"><div class="k">🌾 存進糧倉</div><div class="v sav">${fmt(cur.savSum)}</div></div>
+          <div class="pill"><div class="k">糧倉累計</div><div class="v sav">${fmt(manorState(g).saved)}</div></div>
           <div class="pill"><div class="k">記帳</div><div class="v">${cur.list.length} 筆<small style="font-size:12px;color:var(--muted);font-weight:400"> / ${cur.recDays} 天</small></div></div>
         </div>
         ${state.budget > 0 ? `<div class="budget"><div class="top"><span>預算使用 ${Math.round(cur.expSum / state.budget * 100)}%</span><span>${fmt(cur.expSum)} / ${fmt(state.budget)}</span></div>
@@ -1353,7 +1644,7 @@
         <div class="sec-title"><h2>近 6 個月開銷</h2>${state.budget > 0 ? `<span>紅色虛線＝預算</span>` : ""}</div>
         <div class="chart" id="chTrend"></div>
         <table class="mt"><thead><tr><th>月份</th><th>收入</th><th>開銷</th><th>固定</th><th>一次性</th><th>結餘</th></tr></thead><tbody>
-          ${months.slice().reverse().map(s => { const b = s.incSum - s.expSum - s.oneSum; return `<tr class="${s.y === y && s.m === m ? "cur" : ""}"><td>${s.y !== y ? s.y + "/" : ""}${s.m} 月</td>
+          ${months.slice().reverse().map(s => { const b = s.incSum - s.expSum - s.oneSum - s.savSum; return `<tr class="${s.y === y && s.m === m ? "cur" : ""}"><td>${s.y !== y ? s.y + "/" : ""}${s.m} 月</td>
             <td>${fmt(s.incSum)}</td><td>${fmt(s.expSum)}</td><td>${s.recSum ? fmt(s.recSum) : "—"}</td><td>${s.oneSum ? fmt(s.oneSum) : "—"}</td><td>${b < 0 ? "-" : ""}${fmt(Math.abs(b))}</td></tr>`; }).join("")}
         </tbody></table>
       </section>`;
@@ -1459,7 +1750,7 @@
     $("imText").value = ""; $("imErr").textContent = ""; openSheet($("imSheet"));
   };
   const validEntry = e => e && typeof e.id === "string" && /^[\w-]{1,64}$/.test(e.id)
-    && (e.type === "expense" || e.type === "income") && typeof e.amount === "number" && e.amount > 0 && e.amount <= 1e9
+    && (e.type === "expense" || e.type === "income" || e.type === "saving") && typeof e.amount === "number" && e.amount > 0 && e.amount <= 1e9
     && typeof e.cat === "string" && e.cat.length <= 10 && typeof e.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.date);
   function hashId(str){ let h = 5381; for (let i = 0; i < str.length; i++) h = (h * 33 + str.charCodeAt(i)) >>> 0; return "c" + h.toString(36); }
   function parseCSV(text){
@@ -1473,7 +1764,7 @@
     const seen = {};
     return rows.slice(1).map(l => { const [date, type, cat, amount, note, one] = splitRow(l);
       const key = [date, type, cat, amount, note].join("|"); seen[key] = (seen[key] || 0) + 1;
-      return { id: hashId(key + "#" + seen[key]), date: (date || "").trim(), type: type === "收入" ? "income" : "expense",
+      return { id: hashId(key + "#" + seen[key]), date: (date || "").trim(), type: type === "收入" ? "income" : type === "存錢" ? "saving" : "expense",
         cat: (cat || "其他").trim(), amount: Number(amount), note: note || "", oneoff: one === "是", createdAt: Date.parse(date + "T12:00:00") || Date.now() }; });
   }
   function parseBackup(raw){
@@ -1541,7 +1832,7 @@
         const date = dueDate(ym, r.day);
         if (date > today) break;
         const id = `r-${r.id}-${ym}`;   // 固定的編號：兩台裝置同時補記也只會有一筆
-        if (!state.entries.has(id)) made.push({ id, type: "expense", cat: r.cat, amount: r.amount, date, note: r.name, oneoff: false, createdAt: Date.now(), rec: r.id });
+        if (!state.entries.has(id)) made.push({ id, type: r.kind === "saving" ? "saving" : "expense", cat: r.cat, amount: r.amount, date, note: r.name, oneoff: false, createdAt: Date.now(), rec: r.id });
         r.done = ym; changed = true; ym = nextYm(ym);
       }
     });
@@ -1557,33 +1848,82 @@
     if (!made.length) return;
     const g1 = computeGame(), gained = g1.xp - g0.xp;
     const names = [...new Set(made.map(e => e.note))].slice(0, 3).join("、");
-    toast(`🔁 已自動記入 ${made.length} 筆固定支出（${names}${made.length > 3 ? "…" : ""}）`);
+    toast(`🔁 已自動記入 ${made.length} 筆固定項目（${names}${made.length > 3 ? "…" : ""}）`);
     if (gained > 0) setTimeout(() => {
       floatXP(`+${gained} XP`);
       if (g1.lvl > g0.lvl) setTimeout(() => celebrate(g1, stageOf(g1.lvl) > stageOf(g0.lvl)), 700);
     }, 400);
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { render(); runRecurring(); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { render(); afterLoad(); } });
+
+  // ---------- 月底結餘詢問 ----------
+  // 打開 App 時，如果上個月結餘是正的、而且還沒問過，就問要不要存進糧倉（一定要按確認才記）
+  let sweepYm = null;
+  function runSweep(){
+    if (readOnly || openSheetEl || $("lvup").classList.contains("show")) return;
+    if (hasCfg && lsGet(UID_KEY) && !cloudReady) return;
+    const last = prevYm(todayStr().slice(0, 7));
+    if (state.sweep >= last) return;
+    const st = monthStats(last.split("-").map(Number));
+    if (!st.list.length) return;   // 上個月沒記帳就不問
+    const bal = st.incSum - st.expSum - st.oneSum - st.savSum;
+    if (bal <= 0) { state.sweep = last; putSettings(); return; }
+    sweepYm = last;
+    const mo = +last.slice(5);
+    $("swTitle").textContent = `${mo} 月結餘 ${fmt(bal)}`;
+    $("swLead").textContent = `${state.petName}幫你算好了：${mo} 月收入扣掉開銷${st.oneSum ? "、一次性支出" : ""}${st.savSum ? "和已經存的錢" : ""}，還剩 ${fmt(bal)}。要把它存進莊園的糧倉嗎？`;
+    $("swAmt").value = Math.round(bal); $("swErr").textContent = "";
+    openSheet($("swSheet"));
+  }
+  function closeSweep(){
+    if (sweepYm && sweepYm > state.sweep) { state.sweep = sweepYm; putSettings(); }
+    sweepYm = null; closeSheet();
+  }
+  $("swSkip").onclick = () => { closeSweep(); toast("好，下個月再問你"); };
+  $("swSkip0").onclick = () => closeSweep();
+  $("swSave").onclick = () => {
+    const amount = Number(($("swAmt").value || "").replace(/[,\s]/g, ""));
+    if (!isFinite(amount) || amount <= 0) { $("swErr").textContent = "請輸入大於 0 的金額"; return; }
+    if (amount > 1e9) { $("swErr").textContent = "金額太大了"; return; }
+    const ym = sweepYm, [y, m] = ym.split("-").map(Number);
+    const date = `${ym}-${pad(new Date(y, m, 0).getDate())}`;
+    const g0 = computeGame(), m0 = manorLevels();
+    putEntry({ id: `s-${ym}`, type: "saving", cat: "存款", amount: Math.round(amount * 100) / 100, date, note: `${m} 月結餘存進糧倉`, oneoff: false, createdAt: Date.now() });
+    closeSweep();
+    const g1 = computeGame();
+    toast(`🌾 已把 ${fmt(amount)} 存進糧倉`);
+    setTimeout(() => { if (g1.xp > g0.xp) floatXP(`+${g1.xp - g0.xp} XP`); }, 300);
+    const news = manorNews(m0, manorLevels());
+    if (news) setTimeout(() => toast(news, 3000), 1900);
+  };
+  async function afterLoad(){ await runRecurring(); runSweep(); }
 
   function renderRecList(){
     const rs = [...state.recurring].sort((a, b) => a.paused - b.paused || a.day - b.day);
     $("recList").innerHTML = rs.length ? rs.map(r => {
       const nd = nextDue(r);
-      return `<button class="item" data-r="${esc(r.id)}"><span class="ic">${emojiOf("expense", r.cat)}</span>
+      return `<button class="item" data-r="${esc(r.id)}"><span class="ic">${emojiOf(r.kind === "saving" ? "saving" : "expense", r.cat)}</span>
         <span class="mid"><div class="c">${esc(r.name || r.cat)}${r.paused ? '<span class="tag paused">暫停中</span>' : ""}</div>
-        <div class="n">每月 ${r.day} 號・${esc(r.cat)}${r.paused ? "" : `・下次 ${+nd.slice(5, 7)}/${+nd.slice(8)}`}</div></span>
-        <span class="a">${fmt(r.amount)}</span></button>`;
-    }).join("") : `<div class="empty">還沒有固定支出<br>像房租、手機月租、Netflix 這種每個月都要付的，設定一次就好</div>`;
+        <div class="n">${r.kind === "saving" ? "🌾 存錢・" : ""}每月 ${r.day} 號・${esc(r.cat)}${r.paused ? "" : `・下次 ${+nd.slice(5, 7)}/${+nd.slice(8)}`}</div></span>
+        <span class="a ${r.kind === "saving" ? "sav" : ""}">${fmt(r.amount)}</span></button>`;
+    }).join("") : `<div class="empty">還沒有固定項目<br>像房租、手機月租、定期定額這種每個月都會有的，設定一次就好</div>`;
   }
   $("recLine").onclick = () => { renderRecList(); openSheet($("rlSheet")); };
   $("recList").onclick = e => { const b = e.target.closest("[data-r]"); if (b) openRule(state.recurring.find(r => r.id === b.dataset.r)); };
   $("recAdd").onclick = () => openRule(null);
   $("reDay").innerHTML = Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}">每月 ${i + 1} 號</option>`).join("");
 
-  const rForm = { id: null, cat: "居住" };
+  const rForm = { id: null, cat: "居住", kind: "expense" };
   function paintRuleCats(){
-    $("reCats").innerHTML = CATS.expense.map(([c, em]) => `<button data-c="${c}" class="${c === rForm.cat ? "on" : ""}"><b>${em}</b>${c}</button>`).join("");
+    document.querySelectorAll("#reSeg button").forEach(b => b.classList.toggle("on", b.dataset.k === rForm.kind));
+    $("reName").placeholder = rForm.kind === "saving" ? "例如：0050 定期定額" : "例如：房租、Netflix、電話費";
+    $("reTitle").textContent = (rForm.id ? "編輯" : "新增") + (rForm.kind === "saving" ? "固定存錢" : "固定支出");
+    $("reCats").innerHTML = CATS[rForm.kind].map(([c, em]) => `<button data-c="${c}" class="${c === rForm.cat ? "on" : ""}"><b>${em}</b>${c}</button>`).join("");
   }
+  document.querySelectorAll("#reSeg button").forEach(b => b.onclick = () => {
+    if (rForm.kind === b.dataset.k) return;
+    rForm.kind = b.dataset.k; rForm.cat = CATS[rForm.kind][0][0]; paintRuleCats();
+  });
   $("reCats").onclick = e => { const b = e.target.closest("button"); if (!b) return; rForm.cat = b.dataset.c; paintRuleCats(); };
   function paintReNow(){
     const day = +$("reDay").value, t = todayStr();
@@ -1596,8 +1936,7 @@
     if (readOnly) { toast("目前為唯讀"); return; }
     closeSheet();
     $("reErr").textContent = ""; disarmRe();
-    rForm.id = r ? r.id : null; rForm.cat = r ? r.cat : "居住";
-    $("reTitle").textContent = r ? "編輯固定支出" : "新增固定支出";
+    rForm.id = r ? r.id : null; rForm.kind = r && r.kind === "saving" ? "saving" : "expense"; rForm.cat = r ? r.cat : "居住";
     $("reAmt").value = r ? r.amount : ""; $("reName").value = r ? r.name : "";
     $("reDay").value = r ? r.day : Math.min(new Date().getDate(), 31);
     $("reNow").checked = false; $("rePause").checked = r ? !!r.paused : false;
@@ -1619,11 +1958,11 @@
     if (old) {
       const pause = $("rePause").checked;
       if (old.paused && !pause) { const f = firstYm(day); old.done = prevYm(f); if (old.start > f) old.start = f; }   // 恢復：不補記暫停期間
-      Object.assign(old, { name, cat: rForm.cat, amount: amt, day, paused: pause });
+      Object.assign(old, { name, cat: rForm.cat, amount: amt, day, paused: pause, kind: rForm.kind });
       toast(pause ? `已暫停「${name}」` : `已更新「${name}」`);
     } else {
       const now = !$("reNowRow").hidden && $("reNow").checked;
-      state.recurring.push({ id: newId(), name, cat: rForm.cat, amount: amt, day, start: now ? todayStr().slice(0, 7) : firstYm(day), paused: false });
+      state.recurring.push({ id: newId(), name, cat: rForm.cat, amount: amt, day, start: now ? todayStr().slice(0, 7) : firstYm(day), paused: false, kind: rForm.kind });
       toast(`已新增「${name}」：每月 ${day} 號自動記帳`);
     }
     putSettings(); backToList(); runRecurring();
@@ -1641,10 +1980,10 @@
 
   // toast
   let tt = null;
-  function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 1800); }
+  function toast(msg, ms = 1800){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), ms); }
 
   render();
-  runRecurring();
+  afterLoad();
 
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
