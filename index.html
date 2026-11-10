@@ -237,6 +237,10 @@
   .smoke circle{opacity:0;animation:smoke 3.6s ease-out infinite;transform-box:fill-box;transform-origin:center}
   .smoke circle:nth-child(2){animation-delay:1.2s}.smoke circle:nth-child(3){animation-delay:2.4s}
   @keyframes smoke{0%{opacity:0;transform:translate(0,0) scale(.6)}15%{opacity:.75}100%{opacity:0;transform:translate(10px,-38px) scale(2.3)}}
+  .drive{animation:drive 18s linear infinite}
+  .drive.train{animation-duration:12s}
+  @keyframes drive{from{transform:translateX(-140px)}to{transform:translateX(1900px)}}
+  @media (prefers-reduced-motion: reduce){ .drive{animation:none!important;transform:translateX(860px)} }
   .twinkle{animation:twinkle 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
   @keyframes twinkle{0%,100%{opacity:.3;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
   @media (prefers-reduced-motion: reduce){ .smoke circle,.twinkle{animation:none!important} }
@@ -448,6 +452,7 @@
     <span class="sw"></span>
     <span><b>一次性大額支出</b><small>例如換電腦、買家電。會另外統計，不算進每月開銷、預算和報表比較。</small></span>
   </label>
+  <div class="hint" id="lifeHint" hidden>🧴 日用品、理髮、洗衣、修繕這類生活開銷都記在「生活」，會讓莊園的雜貨店長大。</div>
   <div class="hint" id="savHint" hidden>🌾 存錢、定期定額不算開銷和預算（結餘會扣掉），會存進莊園的糧倉。</div>
   <div class="hint" id="recHint" hidden></div>
   <div class="hint" id="oneHint" hidden>💡 這筆金額比較大，要標記成一次性支出嗎？</div>
@@ -616,13 +621,16 @@
 (() => {
   const CATS = {
     expense: [
-      ["餐飲","🍱"],["交通","🚌"],["購物","🛍️"],["日用","🧻"],["娛樂","🎮"],
+      ["餐飲","🍱"],["交通","🚌"],["購物","🛍️"],["日用","🧴"],["娛樂","🎮"],
       ["居住","🏠"],["醫療","💊"],["教育","📚"],["人情","🎁"],["3C","💻"],["其他","📦"]
     ],
     income: [["薪水","💰"],["獎金","🏆"],["投資","📈"],["兼職","💼"],["其他","📦"]],
     saving: [["定期定額","📈"],["股票","💹"],["存款","🐷"],["定存","🏦"],["其他","🌾"]]
   };
   const TYPE_NAME = { expense: "支出", income: "收入", saving: "存錢" };
+  // 「日用」畫面上叫「生活」（日用品、理髮、洗衣、修繕）；資料裡仍存「日用」，舊紀錄不用改
+  const CAT_LABEL = { "日用": "生活" };
+  const catName = c => CAT_LABEL[c] || c;
   const emojiOf = (type, cat) => ((CATS[type] || CATS.expense).find(c => c[0] === cat) || ["", "📦"])[1];
   const $ = id => document.getElementById(id);
   const fmt = n => "$" + Math.round(n).toLocaleString("zh-TW");
@@ -919,7 +927,14 @@
       days: days.length, monthExp };
   }
 
-  function petSVG(stageIdx, mood){
+  // 最近 5 天的備註有「理髮／剪髮」→ 小錢頂著新髮型
+  const CUT_RE = /理髮|剪髮|剪頭髮|理頭髮|剪頭/;
+  function recentCut(){
+    const t = Date.parse(todayStr() + "T00:00:00");
+    for (const e of state.entries.values()) if (e.type === "expense" && e.note && CUT_RE.test(e.note) && e.date && t - Date.parse(e.date + "T00:00:00") <= 4 * 864e5 && e.date <= todayStr()) return true;
+    return false;
+  }
+  function petSVG(stageIdx, mood, cut){
     const key = STAGES[stageIdx].key;
     const dark = "#3a2f2a";
     if (key === "egg") {
@@ -951,7 +966,10 @@
         <circle cx="49.5" cy="64.4" r="1.5" fill="#fff"/><circle cx="73.5" cy="64.4" r="1.5" fill="#fff"/>`;
     }
     if (key === "phoenix") return phoenixSVG(eyes, extra);
-    const tuft = (key === "teen" || key === "adult" || key === "king")
+    const tuft = cut && key !== "hatch"
+      ? `<path d="M50 46 Q52 36 62 36 Q72 36 72 44 Q66 40 60 42 Q55 43 50 46Z" fill="${body}" stroke="#e59b2b" stroke-width="1.5"/><path d="M58 38 Q63 37 68 40" stroke="#e59b2b" stroke-width="1" fill="none"/>`
+        + `<path d="M84 34 l1.4 -4 l1.4 4 l4 1.4 l-4 1.4 l-1.4 4 l-1.4 -4 l-4 -1.4Z" fill="#fff3b0"/>`
+      : (key === "teen" || key === "adult" || key === "king")
       ? `<path d="M58 44 Q52 30 60 28 Q58 36 64 40 Q66 32 72 32 Q66 38 64 46Z" fill="${body}" stroke="#e59b2b" stroke-width="1.5"/>` : "";
     const tail = (key === "adult" || key === "king")
       ? `<path d="M88 80 Q108 70 110 58 Q100 66 92 70 Q106 60 104 48 Q96 62 86 70Z" fill="#ef8f2f"/>` : "";
@@ -1056,6 +1074,7 @@
     const s = stageOf(g.lvl);
     let pool = s === 0 ? LINES.egg[g.mood] : LINES.pet[g.mood === "new" ? "happy" : g.mood];
     if (STAGES[s].key === "phoenix" && (g.mood === "happy" || g.mood === "normal")) pool = pool.concat(LINES.pet.phoenix);
+    if (s > 1 && STAGES[s].key !== "phoenix" && recentCut()) pool = pool.concat(["剪了新髮型，好看嗎？✂️", "頭好輕喔～清爽！", "新髮型，新氣象 ✨"]);
     say(pool[Math.floor(Math.random() * pool.length)]);
   }
   let sayTimer = null;
@@ -1071,7 +1090,7 @@
     const g = computeGame();
     const s = stageOf(g.lvl);
     const st = $("petStage");
-    const ps = petSVG(s, g.mood);
+    const ps = petSVG(s, g.mood, recentCut());
     if (ps !== lastPetSVG) { $("petSvg").innerHTML = ps; lastPetSVG = ps; }
     st.classList.toggle("egg", s === 0);
     st.classList.toggle("sad", g.mood === "sad");
@@ -1155,14 +1174,16 @@
   // 所有等級都從記帳紀錄即時算出來，不另外存；建築不會降級。
   const lvBy = (v, th) => th.filter(t => v >= t).length;
   const M_TH = { house: [7, 16, 21], field: [30, 90, 180, 365], pond: [7, 21, 60, 100], granary: [50000, 100000, 300000],
-    food: [10, 30, 60, 100, 150, 220, 300, 400, 550, 730] };
+    food: [10, 30, 60, 100, 150, 220, 300, 400, 550, 730], shop: [3, 10, 20, 35, 55, 80], station: [5, 15, 30, 50, 80, 120, 170, 240] };
+  const SHOP_NAMES = ["路邊地攤", "柑仔店", "雜貨店", "雜貨店＋理髮廳", "理髮廳＋洗衣店", "小鎮商店街"];
+  const STATION_NAMES = ["腳踏車架", "機車行", "公車候車亭", "加油站", "客運站", "鐵道小站", "火車站", "高鐵站"];
   const FOOD_NAMES = ["路邊一口灶", "小吃推車", "麵攤", "小吃店", "自助餐", "兩層樓食堂", "餐館", "三層酒樓", "辦桌酒樓", "御膳樓"];
   // 這個月到今天的餐飲，比上個月同期少 → 招牌發金光
-  function foodSaving(entries){
+  function foodSaving(entries, cat = "餐飲"){
     const t = todayStr(), ym = t.slice(0, 7), day = +t.slice(8), [y, mo] = ym.split("-").map(Number);
     const pm = mo === 1 ? `${y - 1}-12` : `${y}-${pad(mo - 1)}`;
     let cur = 0, prev = 0;
-    entries.forEach(e => { if (e.type !== "expense" || e.cat !== "餐飲" || !e.date) return;
+    entries.forEach(e => { if (e.type !== "expense" || e.cat !== cat || !e.date) return;
       if (e.date.startsWith(ym)) cur += e.amount; else if (e.date.startsWith(pm) && +e.date.slice(8) <= day) prev += e.amount; });
     return prev > 0 && cur < prev;
   }
@@ -1177,6 +1198,9 @@
       granary: saved > 0 ? 1 + lvBy(saved, M_TH.granary) : 0, lanterns: g.okMonths, saved, g,
       foodN: entries.filter(e => e.type === "expense" && e.cat === "餐飲").length, foodSave: foodSaving(entries),
       meal: (h >= 7 && h < 9) || (h >= 11 && h < 13) || (h >= 17 && h < 19),
+      rush: (h >= 7 && h < 9) || (h >= 17 && h < 19),
+      ...(() => { const n = c => entries.filter(e => e.type === "expense" && e.cat === c).length, sN = n("日用"), tN = n("交通");
+        return { shopN: sN, shop: lvBy(sN, M_TH.shop), shopSave: foodSaving(entries, "日用"), stationN: tN, station: lvBy(tN, M_TH.station), stationSave: foodSaving(entries, "交通") }; })(),
       thisMonth: entries.some(e => e.date && e.date.startsWith(ym)),
       over: state.budget > 0 && g.monthExp > state.budget,
       season: mo >= 3 && mo <= 5 ? "spring" : mo >= 6 && mo <= 8 ? "summer" : mo >= 9 && mo <= 11 ? "autumn" : "winter",
@@ -1233,11 +1257,11 @@
     } catch {}   // 沒網路就沿用上次的天氣
     wxBusy = false;
   }
-  const MW = 1320, MH = 200, GY = 178, BOT = 72;
+  const MW = 1780, MH = 200, GY = 178, BOT = 72;
   // 依螢幕高度決定放大倍率；多出來的高度補成上方天空、下方草地
   const dims = () => { const h = $("stage").clientHeight || innerHeight; const k = Math.max(1.15, Math.min(1.8, h / 620));
     const VH = Math.ceil(h / k); return { k, VH, TOP: Math.max(0, VH - MH - BOT) }; };
-  const PLOT = { gate: [0, 130], house: [130, 240], food: [370, 240], field: [610, 240], pond: [850, 190], granary: [1040, 180], frontier: [1220, 100] };
+  const PLOT = { gate: [0, 130], house: [130, 240], food: [370, 240], shop: [610, 220], station: [830, 240], field: [1070, 240], pond: [1310, 190], granary: [1500, 180], frontier: [1680, 100] };
   const SEASON = {
     spring: { ground: "#a8d67c", hill: "#8cc56b", far: "#c3e2ae", tree: "#7cbf5a", road: "#ead6a8" },
     summer: { ground: "#8cc366", hill: "#67ac4b", far: "#a9d690", tree: "#4f9a3a", road: "#ead6a8" },
@@ -1259,6 +1283,125 @@
     return s;
   }
   function snowCap(points){ return `<polyline points="${points}" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`; }
+
+  // ----- 建築共用小零件 -----
+  function kit(lit, gold){
+    const k = { s: "", l: "" };
+    k.eave = (x, y, w, c = "#3e3e46") => `<path d="M${x - w / 2 - 8} ${y} Q${x - w / 2 - 3} ${y - 3} ${x - w / 2 + 6} ${y - 12} L${x + w / 2 - 6} ${y - 12} Q${x + w / 2 + 3} ${y - 3} ${x + w / 2 + 8} ${y} Z" fill="${c}"/><path d="M${x - w / 2 - 8} ${y} q-4 -3 -1 -8 M${x + w / 2 + 8} ${y} q4 -3 1 -8" stroke="${c}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+    k.win = (x, y, w = 14, h = 12) => { k.s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#5d3f26"/>`; if (lit) k.l += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#ffd36b"/><circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * .75}" fill="#ffc94d" opacity=".16"/>`; };
+    k.sign = (x, y, w, t, bg = "#b7382b", fg = "#f6d77a") => {
+      k.s += `<rect x="${x - w / 2}" y="${y - 8}" width="${w}" height="15" rx="2" fill="${gold ? "#f2c230" : bg}" stroke="${gold ? "#b8860b" : "#00000033"}"/>` + txt(x, y + 3.5, t, 10, gold ? "#7a2414" : fg, 700);
+      if (gold) [[-w / 2 - 6, -8], [w / 2 + 6, -6], [w / 2 - 4, -16]].forEach(([dx, dy]) => k.l += `<path d="M${x + dx} ${y + dy} l1.6 -5 l1.6 5 l5 1.6 l-5 1.6 l-1.6 5 l-1.6 -5 l-5 -1.6Z" fill="#fff3b0" class="twinkle"/>`); };
+    k.bird = (x, y, c = "#ffd858") => `<ellipse cx="${x}" cy="${y}" rx="6" ry="6.5" fill="${c}"/><circle cx="${x + 2}" cy="${y - 2}" r="1.1" fill="#3a2f2a"/><path d="M${x + 5} ${y - .5} l3.5 1.2 l-3.5 1.2z" fill="#f08a24"/>`;
+    k.awning = (x, y, w, c1, c2) => { let r = ""; const n = Math.max(3, Math.round(w / 12)), sw = w / n;
+      for (let i = 0; i < n; i++) r += `<path d="M${x + i * sw} ${y} h${sw} v8 q${-sw / 2} 5 ${-sw} 0Z" fill="${i % 2 ? c2 : c1}"/>`; return r; };
+    k.lantern = (x, y) => { k.s += `<path d="M${x} ${y} v4" stroke="#6b4a2a"/><ellipse cx="${x}" cy="${y + 9}" rx="5" ry="5.5" fill="#d8352a"/><rect x="${x - 3}" y="${y + 3}" width="6" height="1.6" fill="#d9a400"/>`;
+      if (lit) k.l += `<circle cx="${x}" cy="${y + 9}" r="10" fill="#ffb347" opacity=".35"/><ellipse cx="${x}" cy="${y + 9}" rx="2.5" ry="3.5" fill="#ffd27a"/>`; };
+    k.bike = x => `<g stroke="#2f5d62" stroke-width="2" fill="none"><circle cx="${x}" cy="${GY - 7}" r="6.5"/><circle cx="${x + 19}" cy="${GY - 7}" r="6.5"/><path d="M${x} ${GY - 7} L${x + 7} ${GY - 18} L${x + 15} ${GY - 18} L${x + 19} ${GY - 7} M${x + 7} ${GY - 18} L${x + 10} ${GY - 7} L${x + 15} ${GY - 18} M${x + 5} ${GY - 21} h5 M${x + 15} ${GY - 18} l1 -4 h4"/></g>`;
+    k.scooter = (x, c) => `<circle cx="${x}" cy="${GY - 6}" r="6" fill="#333"/><circle cx="${x + 26}" cy="${GY - 6}" r="6" fill="#333"/><path d="M${x - 4} ${GY - 10} Q${x + 2} ${GY - 22} ${x + 14} ${GY - 18} L${x + 22} ${GY - 18} L${x + 26} ${GY - 32} L${x + 30} ${GY - 32} L${x + 30} ${GY - 10}Z" fill="${c}"/><rect x="${x + 4}" y="${GY - 23}" width="13" height="4" rx="2" fill="#333"/>`;
+    k.bus = (x, c = "#2f8f83") => `<rect x="${x}" y="${GY - 30}" width="74" height="26" rx="5" fill="${c}"/>${[6, 20, 34, 48].map(d => `<rect x="${x + d}" y="${GY - 25}" width="11" height="9" rx="1" fill="#e6f2fb"/>`).join("")}<rect x="${x + 62}" y="${GY - 25}" width="9" height="17" fill="#e6f2fb"/><circle cx="${x + 15}" cy="${GY - 4}" r="5" fill="#333"/><circle cx="${x + 58}" cy="${GY - 4}" r="5" fill="#333"/>`;
+    return k;
+  }
+
+  // ----- 小錢雜貨店（生活）6 種造型 -----
+  function shopSVG(lv, x0, lit, gold){
+    const k = kit(lit, gold);
+    const store = (L, W, H, wall, roof, name, signC) => {
+      k.s += `<rect x="${L}" y="${GY - H}" width="${W}" height="${H}" fill="${wall}"/>` + k.eave(L + W / 2, GY - H + 2, W + 6, roof);
+      k.sign(L + W / 2, GY - H + 11, Math.min(W - 10, name.length * 11 + 12), name, signC);
+    };
+    const barber = (L, W) => {
+      store(L, W, 46, "#f3f0ea", "#4a4a52", "理髮", "#2b5fb4");
+      k.s += `<rect x="${L + W / 2 - 9}" y="${GY - 26}" width="18" height="26" fill="#7fb7d8"/><rect x="${L + 5}" y="${GY - 30}" width="7" height="26" rx="3" fill="url(#barberPole)" stroke="#999" stroke-width=".6"/><circle cx="${L + 8.5}" cy="${GY - 31}" r="3.5" fill="#d0d4d8"/>`;
+    };
+    const laundry = (L, W) => {
+      store(L, W, 44, "#e6f2fb", "#4a4a52", "洗衣", "#2f8f83");
+      k.s += `<rect x="${L + 8}" y="${GY - 26}" width="${W - 16}" height="20" fill="#cfe3ea"/>` + [0, 1].map(i => `<circle cx="${L + 18 + i * 22}" cy="${GY - 16}" r="7" fill="#fff" stroke="#888"/><circle cx="${L + 18 + i * 22}" cy="${GY - 16}" r="4" fill="#9fd0e6"/>`).join("");
+      k.s += `<path d="M${L + W + 4} ${GY - 40} Q${L + W + 22} ${GY - 34} ${L + W + 40} ${GY - 40}" stroke="#888" fill="none"/><rect x="${L + W + 39}" y="${GY - 42}" width="2" height="42" fill="#7a5530"/>`
+        + [["#e2445c", 10], ["#7fb7d8", 24]].map(([c, d]) => `<path d="M${L + W + d - 5} ${GY - 37} h10 l2 4 h-3 v8 h-8 v-8 h-3Z" fill="${c}"/>`).join("");
+    };
+    const grocery = (L, W, two) => {
+      if (two) { k.s += `<rect x="${L + 6}" y="${GY - 84}" width="${W - 12}" height="32" fill="#eadbb8"/>` + k.eave(L + W / 2, GY - 82, W - 6); k.win(L + 14, GY - 76); k.win(L + W - 28, GY - 76); }
+      store(L, W, 52, "#d9b98a", "#3e3e46", "雜貨店");
+      k.s += `<rect x="${L + 8}" y="${GY - 30}" width="${W - 16}" height="30" fill="#5d3f26"/>` + [0, 1, 2].map(i => `<rect x="${L + 12}" y="${GY - 27 + i * 9}" width="${W - 24}" height="2" fill="#8a5a2b"/>`).join("")
+        + Array.from({ length: Math.floor((W - 26) / 7) }, (_, i) => `<rect x="${L + 13 + i * 7}" y="${GY - 33 + (i % 3) * 9 + 6}" width="5" height="5" fill="${["#e2445c", "#f0c94a", "#79c24f", "#7fb7d8"][i % 4]}"/>`).join("")
+        + `<rect x="${L - 8}" y="${GY - 12}" width="12" height="12" fill="#c98a4b" stroke="#8a5a2b"/><rect x="${L - 4}" y="${GY - 22}" width="10" height="10" fill="#c98a4b" stroke="#8a5a2b"/>`;
+    };
+    k.s += `<defs><pattern id="barberPole" width="7" height="8" patternUnits="userSpaceOnUse"><rect width="7" height="8" fill="#fff"/><path d="M0 0 L7 3 L7 5 L0 2Z" fill="#d8352a"/><path d="M0 4 L7 7 L7 9 L0 6Z" fill="#2b5fb4"/><animateTransform attributeName="patternTransform" type="translate" from="0 0" to="0 8" dur="1s" repeatCount="indefinite"/></pattern></defs>`;
+    if (lv === 1) {
+      k.s += `<polygon points="${x0 + 60},${GY} ${x0 + 160},${GY} ${x0 + 150},${GY - 12} ${x0 + 70},${GY - 12}" fill="#3f7fb8"/>`
+        + [["#e2445c", 76], ["#f0c94a", 92], ["#79c24f", 108], ["#fff", 124], ["#c98a4b", 138]].map(([c, d]) => `<rect x="${x0 + d}" y="${GY - 10}" width="9" height="7" rx="1.5" fill="${c}"/>`).join("")
+        + `<rect x="${x0 + 168}" y="${GY - 56}" width="2.5" height="56" fill="#7a5530"/><path d="M${x0 + 138} ${GY - 52} Q${x0 + 169} ${GY - 72} ${x0 + 200} ${GY - 52}Z" fill="#79c24f"/>` + k.bird(x0 + 186, GY - 7, "#f7a537");
+      k.sign(x0 + 110, GY - 26, 40, "好物");
+    } else if (lv === 2) {
+      const L = x0 + 60, W = 100;
+      k.s += `<rect x="${L}" y="${GY - 48}" width="${W}" height="48" fill="#c98a4b"/><rect x="${L + 10}" y="${GY - 32}" width="${W - 20}" height="32" fill="#5d3f26"/>`
+        + [0, 1, 2, 3, 4].map(i => `<rect x="${L + 16 + i * 15}" y="${GY - 28}" width="9" height="11" rx="3" fill="${["#f0c94a", "#e2445c", "#79c24f", "#f0997b", "#7fb7d8"][i]}" opacity=".9"/>`).join("")
+        + k.awning(L - 4, GY - 48, W + 8, "#2f8f83", "#f6f1e6");
+      k.sign(L + W / 2, GY - 58, 52, "柑仔店");
+      k.s += k.bird(L + W + 18, GY - 7);
+    } else if (lv === 3) grocery(x0 + 40, 140);
+    else if (lv === 4) { grocery(x0 + 14, 112); barber(x0 + 138, 72); }
+    else { grocery(x0 + 10, 82, lv === 6); barber(x0 + 96, 58); laundry(x0 + 158, 56);
+      if (lv === 6) { k.s += `<path d="M${x0 + 4} ${GY - 92} Q${x0 + 110} ${GY - 70} ${x0 + 216} ${GY - 92}" stroke="#6b4a2a" fill="none"/>`; [40, 80, 120, 160, 196].forEach(d => k.lantern(x0 + d, GY - 88 + Math.sin(d / 216 * Math.PI) * 18)); }
+    }
+    return { s: k.s, l: k.l };
+  }
+
+  // ----- 小錢驛站（交通）8 種造型 -----
+  function stationSVG(lv, x0, lit, gold){
+    const k = kit(lit, gold), cx = x0 + 120;
+    const platform = (L, W) => { k.s += `<rect x="${L}" y="${GY - 6}" width="${W}" height="6" fill="#b4b2a9"/><rect x="${L}" y="${GY - 7}" width="${W}" height="2" fill="#f0c94a"/>`; };
+    if (lv === 1) {
+      k.s += `<rect x="${cx - 40}" y="${GY - 16}" width="80" height="3" fill="#888780"/>` + [0, 1, 2, 3].map(i => `<path d="M${cx - 34 + i * 22} ${GY} v-16" stroke="#888780" stroke-width="2.5"/>`).join("") + k.bike(cx - 34) + k.bike(cx + 6);
+      k.sign(cx, GY - 30, 44, "單車架", "#2f8f83", "#fff");
+    } else if (lv === 2) {
+      const L = x0 + 40, W = 110;
+      k.s += `<rect x="${L}" y="${GY - 50}" width="${W}" height="50" fill="#d3d1c7"/><rect x="${L + 8}" y="${GY - 36}" width="${W - 16}" height="36" fill="#5f5e5a"/>` + k.eave(L + W / 2, GY - 48, W + 6, "#444441");
+      k.sign(L + W / 2, GY - 41, 52, "機車行", "#2b5fb4", "#fff");
+      k.s += k.scooter(L + W + 10, "#e2445c") + k.scooter(L + 18, "#7fb7d8");
+    } else if (lv === 3) {
+      k.s += `<rect x="${cx - 46}" y="${GY - 52}" width="3" height="52" fill="#5f5e5a"/><rect x="${cx + 43}" y="${GY - 52}" width="3" height="52" fill="#5f5e5a"/><rect x="${cx - 52}" y="${GY - 56}" width="104" height="6" rx="2" fill="#2f8f83"/>
+        <rect x="${cx - 44}" y="${GY - 50}" width="88" height="30" fill="#bfe3f5" opacity=".5"/><rect x="${cx - 30}" y="${GY - 16}" width="60" height="4" fill="#8a5a2b"/><rect x="${cx - 26}" y="${GY - 12}" width="3" height="12" fill="#6b4422"/><rect x="${cx + 23}" y="${GY - 12}" width="3" height="12" fill="#6b4422"/>
+        <rect x="${cx + 66}" y="${GY - 62}" width="3" height="62" fill="#888780"/><circle cx="${cx + 67.5}" cy="${GY - 66}" r="10" fill="#2b5fb4"/>${txt(cx + 67.5, GY - 62, "站", 10, "#fff", 700)}`
+        + k.bird(cx - 12, GY - 23) + k.bird(cx + 10, GY - 23, "#f7a537");
+      k.sign(cx, GY - 63, 44, "候車亭", "#2f8f83", "#fff");
+    } else if (lv === 4) {
+      k.s += `<rect x="${cx - 60}" y="${GY - 66}" width="120" height="10" fill="#e2445c"/><rect x="${cx - 60}" y="${GY - 58}" width="120" height="3" fill="#f2f2ee"/>
+        <rect x="${cx - 50}" y="${GY - 56}" width="5" height="56" fill="#d3d1c7"/><rect x="${cx + 45}" y="${GY - 56}" width="5" height="56" fill="#d3d1c7"/>`
+        + [-24, 12].map(d => `<rect x="${cx + d}" y="${GY - 30}" width="14" height="30" rx="2" fill="#f2f2ee" stroke="#888"/><rect x="${cx + d + 3}" y="${GY - 26}" width="8" height="6" fill="#2f5d62"/><path d="M${cx + d + 14} ${GY - 20} q6 2 4 12" stroke="#333" fill="none" stroke-width="1.5"/>`).join("")
+        + `<rect x="${cx + 80}" y="${GY - 80}" width="4" height="80" fill="#888780"/><rect x="${cx + 70}" y="${GY - 96}" width="24" height="18" rx="2" fill="#f2f2ee" stroke="#e2445c" stroke-width="2"/>${txt(cx + 82, GY - 83, "⛽", 11, "#e2445c")}`;
+      k.sign(cx, GY - 61, 50, "加油站");
+    } else if (lv === 5) {
+      const L = x0 + 20, W = 150;
+      k.s += `<rect x="${L}" y="${GY - 54}" width="${W}" height="54" fill="#eadbb8"/><rect x="${L}" y="${GY - 54}" width="${W}" height="6" fill="#2f8f83"/>` + [0, 1, 2, 3].map(i => `<rect x="${L + 10 + i * 34}" y="${GY - 40}" width="26" height="22" fill="#9fd0e6"/>`).join("")
+        + `<rect x="${L + W / 2 - 10}" y="${GY - 22}" width="20" height="22" fill="#5d3f26"/>`;
+      if (lit) k.l += [0, 1, 2, 3].map(i => `<rect x="${L + 10 + i * 34}" y="${GY - 40}" width="26" height="22" fill="#ffd36b" opacity=".85"/>`).join("");
+      k.sign(L + W / 2, GY - 62, 52, "客運站", "#2f8f83", "#fff");
+      k.s += k.bus(x0 + 160);
+    } else {
+      platform(x0 + 4, 232);
+      if (lv === 6) {
+        k.s += `<rect x="${cx - 40}" y="${GY - 46}" width="3" height="40" fill="#7a5530"/><rect x="${cx + 37}" y="${GY - 46}" width="3" height="40" fill="#7a5530"/>` + k.eave(cx, GY - 44, 90, "#5f3b1a")
+          + `<rect x="${cx - 26}" y="${GY - 20}" width="52" height="4" fill="#8a5a2b"/>` + k.bird(cx - 10, GY - 23) + k.bird(cx + 12, GY - 23, "#ffe27a");
+        k.sign(cx, GY - 64, 50, "小錢站", "#f2f2ee", "#2f5d62");
+      } else if (lv === 7) {
+        const L = x0 + 30, W = 180;
+        k.s += `<rect x="${L}" y="${GY - 54}" width="${W}" height="48" fill="#c65b3f"/>` + k.eave(L + W / 2, GY - 52, W + 6, "#4a4a52")
+          + `<rect x="${cx - 16}" y="${GY - 104}" width="32" height="52" fill="#d46d4f"/>` + k.eave(cx, GY - 102, 38, "#4a4a52") + `<circle cx="${cx}" cy="${GY - 82}" r="10" fill="#f6f1e6" stroke="#5f3b1a" stroke-width="2"/><path d="M${cx} ${GY - 82} v-6 M${cx} ${GY - 82} h5" stroke="#333" stroke-width="1.5"/>`
+          + `<rect x="${cx - 12}" y="${GY - 34}" width="24" height="28" fill="#6b3a22"/>`;
+        k.win(L + 14, GY - 40, 16, 16); k.win(L + 40, GY - 40, 16, 16); k.win(L + W - 30, GY - 40, 16, 16); k.win(L + W - 56, GY - 40, 16, 16);
+        k.sign(cx, GY - 60, 52, "火車站", "#f6f1e6", "#7a2414");
+      } else {
+        const L = x0 + 16, W = 208;
+        k.s += `<path d="M${L} ${GY - 50} Q${L + W / 2} ${GY - 92} ${L + W} ${GY - 50}Z" fill="#9fd0e6" stroke="#5a8fb0" stroke-width="2"/><rect x="${L}" y="${GY - 52}" width="${W}" height="46" fill="#f2f2ee"/>`
+          + Array.from({ length: 8 }, (_, i) => `<rect x="${L + 8 + i * 25}" y="${GY - 44}" width="19" height="30" fill="#bfe3f5"/>`).join("") + `<rect x="${L}" y="${GY - 14}" width="${W}" height="8" fill="#d8d6cf"/>`;
+        if (lit) k.l += `<rect x="${L + 6}" y="${GY - 46}" width="${W - 12}" height="34" fill="#ffe7a0" opacity=".55"/>`;
+        k.sign(L + W / 2, GY - 60, 52, "高鐵站", "#e2445c", "#fff");
+      }
+    }
+    return { s: k.s, l: k.l };
+  }
 
   // ----- 小錢食堂的 10 種造型 -----
   function foodSVG(lv, x0, lit, meal, gold){
@@ -1394,7 +1537,9 @@
     for (let x = 14; x < MW; x += 46) s += `<rect x="${x}" y="190" width="14" height="3" rx="1.5" fill="#fff" opacity=".35"/>`;
     // 點綴的樹
     const tree = x => `<rect x="${x - 2}" y="150" width="4" height="28" fill="#7a5530"/><circle cx="${x}" cy="146" r="13" fill="${P.tree}"/><circle cx="${x - 8}" cy="154" r="9" fill="${P.tree}"/>${winter ? `<path d="M${x - 11} 140 Q${x} 128 ${x + 11} 140" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>` : ""}`;
-    [124, 366, 606, 846, 1036].forEach(x => s += tree(x));
+    [124, 366, 606, 1066, 1306, 1496].forEach(x => s += tree(x));
+    if (m.station >= 6) s += `<rect y="${GY + 15}" width="${MW}" height="2" fill="#8a8a8a"/><rect y="${GY + 20}" width="${MW}" height="2" fill="#8a8a8a"/>`
+      + Array.from({ length: Math.ceil(MW / 14) }, (_, i) => `<rect x="${i * 14}" y="${GY + 14}" width="5" height="9" fill="#7a5530" opacity=".55"/>`).join("");
 
     // 大門（牌樓）
     s += `<rect x="28" y="92" width="9" height="86" fill="#b7382b"/><rect x="93" y="92" width="9" height="86" fill="#b7382b"/>
@@ -1431,6 +1576,25 @@
       const [x0, w] = PLOT.food;
       if (!m.food) s += lockedPlot(x0, w, "小錢食堂", `累計記餐飲 ${m.foodN} / 10 筆`);
       else { const r = foodSVG(m.food, x0, night || m.time === "dusk", m.meal, m.foodSave); s += r.s; lights += r.l; }
+    }
+
+    // 小錢雜貨店（生活）、小錢驛站（交通）
+    {
+      const [x0, w] = PLOT.shop;
+      if (!m.shop) s += lockedPlot(x0, w, "小錢雜貨店", `累計記生活 ${m.shopN} / 3 筆`);
+      else { const r = shopSVG(m.shop, x0, night || m.time === "dusk", m.shopSave); s += r.s; lights += r.l; }
+    }
+    {
+      const [x0, w] = PLOT.station;
+      if (!m.station) s += lockedPlot(x0, w, "小錢驛站", `累計記交通 ${m.stationN} / 5 筆`);
+      else { const r = stationSVG(m.station, x0, night || m.time === "dusk", m.stationSave); s += r.s; lights += r.l; }
+      // 上下班尖峰：路上有車經過（鐵道小站以後換小火車）
+      if (m.station && m.rush) s += m.station >= 6
+        ? `<g class="drive train"><rect x="0" y="${GY - 6}" width="34" height="20" rx="4" fill="#2b5fb4"/><rect x="36" y="${GY - 4}" width="40" height="18" rx="3" fill="#f2f2ee"/><rect x="78" y="${GY - 4}" width="40" height="18" rx="3" fill="#f2f2ee"/>
+            <rect x="26" y="${GY - 2}" width="6" height="6" fill="#bfe3f5"/>${[42, 56, 84, 98].map(x => `<rect x="${x}" y="${GY}" width="9" height="6" fill="#7fb7d8"/>`).join("")}<rect x="36" y="${GY + 9}" width="82" height="2" fill="#2b5fb4"/>
+            ${[8, 24, 46, 66, 88, 108].map(x => `<circle cx="${x}" cy="${GY + 15}" r="3" fill="#333"/>`).join("")}</g>`
+        : `<g class="drive bus"><rect x="0" y="${GY - 4}" width="58" height="22" rx="5" fill="#f0a13a"/><rect x="0" y="${GY + 10}" width="58" height="3" fill="#d9771f"/>
+            ${[6, 18, 30, 42].map(x => `<rect x="${x}" y="${GY}" width="9" height="7" rx="1" fill="#e6f2fb"/>`).join("")}<circle cx="13" cy="${GY + 18}" r="4" fill="#333"/><circle cx="46" cy="${GY + 18}" r="4" fill="#333"/></g>`;
     }
 
     // 稻田：累計記帳天數
@@ -1513,7 +1677,7 @@
     // 紅燈籠：守住預算一個月掛一盞
     if (m.lanterns) {
       const glow = night || m.time === "dusk"; let lan = "";
-      const n = Math.min(m.lanterns, 14), x1 = 140 + n * 80;
+      const n = Math.min(m.lanterns, 20), x1 = 140 + n * 80;
       let rope = "M140 10";
       for (let i = 0; i < n; i++) rope += ` Q${180 + i * 80} 26 ${220 + i * 80} 10`;
       lan += `<path d="${rope}" stroke="${night ? "#a88a6a" : "#6b4a2a"}" stroke-width="1.5" fill="none"/><rect x="${x1 - 2}" y="4" width="4" height="10" fill="#6b4a2a"/><rect x="138" y="4" width="4" height="10" fill="#6b4a2a"/>`;
@@ -1529,7 +1693,7 @@
 
     const shade = night ? `<rect width="${MW}" height="${MH}" fill="#0b1633" opacity=".42"/>` : m.time === "dusk" ? `<rect width="${MW}" height="${MH}" fill="#c0603a" opacity=".1"/>` : "";
     const hits = Object.entries(PLOT).map(([key, [x, w]]) => `<rect data-plot="${key}" x="${x}" y="80" width="${w}" height="${MH - 80}" fill="transparent"/>`).join("")
-      + (m.lanterns ? `<rect data-plot="lantern" x="130" y="0" width="${Math.min(m.lanterns, 14) * 80 + 20}" height="44" fill="transparent"/>` : "");
+      + (m.lanterns ? `<rect data-plot="lantern" x="130" y="0" width="${Math.min(m.lanterns, 20) * 80 + 20}" height="44" fill="transparent"/>` : "");
     const shadeAll = shade.replace(`height="${MH}"`, `height="${VH}"`);
     return `<svg width="${Math.round(MW * k)}" height="${Math.round(VH * k)}" viewBox="0 0 ${MW} ${VH}" role="img" aria-label="鳳凰莊園">${outer}
       <g transform="translate(0 ${TOP})">${s}</g><rect y="${TOP + MH}" width="${MW}" height="${VH - TOP - MH + 1}" fill="${P.ground}"/>
@@ -1547,6 +1711,12 @@
     if (k === "food") return m.food ? `🍜 小錢食堂 Lv ${m.food}「${FOOD_NAMES[m.food - 1]}」：累計記了 ${m.foodN} 筆餐飲`
       + (m.food < 10 ? `。滿 ${M_TH.food[m.food]} 筆變成「${FOOD_NAMES[m.food]}」` : "。滿級了，御膳樓開張！") + (m.foodSave ? "（這個月餐飲比上個月同期省，招牌發金光 ✨）" : "")
       : `🍜 小錢食堂：記滿 10 筆餐飲就會開張（目前 ${m.foodN} 筆）`;
+    if (k === "shop") return m.shop ? `🧴 小錢雜貨店 Lv ${m.shop}「${SHOP_NAMES[m.shop - 1]}」：累計記了 ${m.shopN} 筆生活開銷`
+      + (m.shop < 6 ? `。滿 ${M_TH.shop[m.shop]} 筆變成「${SHOP_NAMES[m.shop]}」` : "。滿級了，整條商店街都熱鬧起來！") + (m.shopSave ? "（這個月生活開銷比上個月同期省，招牌發金光 ✨）" : "")
+      : `🧴 小錢雜貨店：記滿 3 筆「生活」（日用品、理髮、洗衣…）就會開張（目前 ${m.shopN} 筆）`;
+    if (k === "station") return m.station ? `🚉 小錢驛站 Lv ${m.station}「${STATION_NAMES[m.station - 1]}」：累計記了 ${m.stationN} 筆交通`
+      + (m.station < 8 ? `。滿 ${M_TH.station[m.station]} 筆變成「${STATION_NAMES[m.station]}」` : "。滿級了，高鐵站落成！") + (m.stationSave ? "（這個月交通比上個月同期省，招牌發金光 ✨）" : "")
+      + "。上下班尖峰會有車經過喔" : `🚉 小錢驛站：記滿 5 筆交通就會蓋好（目前 ${m.stationN} 筆）`;
     if (k === "lantern") return `🏮 已掛 ${m.lanterns} 盞燈籠：每守住一個月的預算，就多掛一盞`;
     return "🎋 更多建築（市集、學堂、藥草園、鳳凰神殿）還在開發中，敬請期待！";
   }
@@ -1718,9 +1888,11 @@
   $("homeClose").onclick = closeHome;
   addEventListener("keydown", e => { if (e.key === "Escape" && homeOpen && !openSheetEl && !reportOpen) closeHome(); }, true);
 
-  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary, m.food]; };
+  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary, m.food, m.shop, m.station]; };
   function manorNews(a, b){
     if (!a[2] && b[2]) return "🏦 莊園蓋好糧倉了！往右滑去看看 🎉";
+    if (b[4] > a[4]) return a[4] ? `🧴 小錢雜貨店升級成「${SHOP_NAMES[b[4] - 1]}」了！往右滑去看看 🎉` : "🧴 小錢雜貨店開張了！就在食堂旁邊 🎉";
+    if (b[5] > a[5]) return a[5] ? `🚉 小錢驛站升級成「${STATION_NAMES[b[5] - 1]}」了！往右滑去看看 🎉` : "🚉 小錢驛站蓋好了！就在雜貨店旁邊 🎉";
     if (b[3] > a[3]) return a[3] ? `🍜 小錢食堂升級成「${FOOD_NAMES[b[3] - 1]}」了！往右滑去看看 🎉` : "🍜 小錢食堂開張了！就在大宅旁邊 🎉";
     const names = ["🌾 稻田", "🪷 荷花池", "🏦 糧倉"];
     const up = names.filter((_, i) => b[i] > a[i]);
@@ -1786,7 +1958,7 @@
     const max = rows.length ? rows[0][1] : 1;
     $("cats").innerHTML = rows.length ? rows.map(([c, v]) => `
       <div class="cat-row">
-        <span class="em">${emojiOf(t, c)}</span><span>${esc(c)}</span>
+        <span class="em">${emojiOf(t, c)}</span><span>${esc(catName(c))}</span>
         <div class="bar"><i style="width:${(v / max * 100).toFixed(1)}%;background:${t === "expense" ? "var(--exp)" : t === "saving" ? "var(--sav)" : "var(--inc)"}"></i></div>
         <span class="amt">${fmt(v)}<small>${Math.round(v / total * 100)}%</small></span>
       </div>`).join("")
@@ -1794,7 +1966,7 @@
 
     // list
     const q = state.q.trim().toLowerCase();
-    const shown = list.filter(e => !q || (e.note || "").toLowerCase().includes(q) || e.cat.includes(q))
+    const shown = list.filter(e => !q || (e.note || "").toLowerCase().includes(q) || catName(e.cat).includes(q) || e.cat.includes(q))
       .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
     $("count").textContent = shown.length ? `${shown.length} 筆` : "";
     if (!shown.length) {
@@ -1814,7 +1986,7 @@
         ${items.map(e => `
           <button class="item" data-id="${esc(e.id)}">
             <span class="ic">${emojiOf(e.type, e.cat)}</span>
-            <span class="mid"><div class="c">${esc(e.cat)}${e.oneoff ? '<span class="tag">一次性</span>' : ""}${e.rec ? '<span class="tag">🔁 固定</span>' : ""}${e.type === "saving" ? '<span class="tag">🌾 存錢</span>' : ""}</div>${e.note ? `<div class="n">${esc(e.note)}</div>` : ""}</span>
+            <span class="mid"><div class="c">${esc(catName(e.cat))}${e.oneoff ? '<span class="tag">一次性</span>' : ""}${e.rec ? '<span class="tag">🔁 固定</span>' : ""}${e.type === "saving" ? '<span class="tag">🌾 存錢</span>' : ""}</div>${e.note ? `<div class="n">${esc(e.note)}</div>` : ""}</span>
             <span class="a ${e.type === "income" ? "inc" : e.type === "saving" ? "sav" : "exp"}">${e.type === "income" ? "+" : e.type === "saving" ? "→" : "-"}${fmt(e.amount).slice(1)}</span>
           </button>`).join("")}
       </div>`;
@@ -1851,9 +2023,10 @@
     document.querySelectorAll("#entrySeg button").forEach(b => b.classList.toggle("on", b.dataset.type === form.type));
     $("oneoffRow").hidden = form.type !== "expense";
     $("savHint").hidden = form.type !== "saving" || !$("recHint").hidden;
+    $("lifeHint").hidden = !(form.type === "expense" && form.cat === "日用");
     updateHint();
     $("catPick").innerHTML = CATS[form.type].map(([c, em]) =>
-      `<button data-c="${c}" class="${c === form.cat ? "on" : ""}"><b>${em}</b>${c}</button>`).join("");
+      `<button data-c="${c}" class="${c === form.cat ? "on" : ""}"><b>${em}</b>${catName(c)}</button>`).join("");
   }
   document.querySelectorAll("#entrySeg button").forEach(b => b.onclick = () => {
     if (form.type === b.dataset.type) return;
@@ -1970,7 +2143,7 @@
     const rows = monthEntries().sort((a, b) => a.date.localeCompare(b.date));
     const q = s => `"${String(s).replace(/"/g, '""')}"`;
     const lines = ["日期,類型,分類,金額,備註,一次性", ...rows.map(e =>
-      [e.date, TYPE_NAME[e.type] || "支出", q(e.cat), e.amount, q(e.note || ""), e.oneoff ? "是" : ""].join(","))];
+      [e.date, TYPE_NAME[e.type] || "支出", q(catName(e.cat)), e.amount, q(e.note || ""), e.oneoff ? "是" : ""].join(","))];
     $("csv").value = lines.join("\n");
     openSheet($("xSheet"));
   };
@@ -2035,7 +2208,7 @@
     else if (prev.expSum && isThisMonth && cur.expSum < prev.expSum) say = `到今天為止比上個月同期少花了 ${fmt(prev.expSum - cur.expSum)}，繼續保持！`;
     else {
       const top = Object.entries(cur.byCat).sort((a, b) => b[1] - a[1])[0];
-      say = top ? `這個月花最多的是「${top[0]}」，總共 ${fmt(top[1])}。` : "這個月目前只有收入，讚！";
+      say = top ? `這個月花最多的是「${catName(top[0])}」，總共 ${fmt(top[1])}。` : "這個月目前只有收入，讚！";
     }
 
     // category ranking
@@ -2045,7 +2218,7 @@
       const p = prev.byCat[c] || 0;
       let dl = "新增";
       if (p) { const d = v - p; dl = Math.abs(d) < 0.5 ? "持平" : `${d > 0 ? "▲" : "▼"} ${fmt(Math.abs(d))}`; }
-      return `<div class="rk"><span class="em">${emojiOf("expense", c)}</span><span>${esc(c)}</span>
+      return `<div class="rk"><span class="em">${emojiOf("expense", c)}</span><span>${esc(catName(c))}</span>
         <div class="track"><i style="width:${(v / maxCat * 100).toFixed(1)}%"></i></div>
         <span class="amt">${fmt(v)}</span><span class="dl">${prev.expSum ? dl : `${Math.round(v / cur.expSum * 100)}%`}</span></div>`;
     }).join("");
@@ -2082,7 +2255,7 @@
       ${cur.oneoff.length ? `<section class="card top5">
         <div class="sec-title"><h2>💻 一次性支出</h2><span>合計 ${fmt(cur.oneSum)}</span></div>
         ${[...cur.oneoff].sort((a, b) => b.amount - a.amount).map(e => `<div class="item"><span class="ic">${emojiOf("expense", e.cat)}</span>
-          <span class="mid"><div class="c">${esc(e.note || e.cat)}</div><div class="n">${+e.date.slice(5, 7)}/${+e.date.slice(8)}・${esc(e.cat)}</div></span>
+          <span class="mid"><div class="c">${esc(e.note || catName(e.cat))}</div><div class="n">${+e.date.slice(5, 7)}/${+e.date.slice(8)}・${esc(catName(e.cat))}</div></span>
           <span class="a">${fmt(e.amount)}</span></div>`).join("")}
         <div class="note">已另外列出，不影響上面的開銷、預算、每日圖表和跟上個月的比較；結餘有扣掉。</div>
       </section>` : ""}
@@ -2100,7 +2273,7 @@
       <section class="card top5">
         <div class="sec-title"><h2>前五大支出</h2></div>
         ${top5.length ? top5.map((e, i) => `<div class="item"><span class="ic">${emojiOf("expense", e.cat)}</span>
-          <span class="mid"><div class="c">${i + 1}. ${esc(e.note || e.cat)}</div><div class="n">${+e.date.slice(5, 7)}/${+e.date.slice(8)}・${esc(e.cat)}</div></span>
+          <span class="mid"><div class="c">${i + 1}. ${esc(e.note || catName(e.cat))}</div><div class="n">${+e.date.slice(5, 7)}/${+e.date.slice(8)}・${esc(catName(e.cat))}</div></span>
           <span class="a">${fmt(e.amount)}</span></div>`).join("") : `<div class="empty">這個月還沒有支出</div>`}
       </section>
 
@@ -2229,7 +2402,7 @@
     return rows.slice(1).map(l => { const [date, type, cat, amount, note, one] = splitRow(l);
       const key = [date, type, cat, amount, note].join("|"); seen[key] = (seen[key] || 0) + 1;
       return { id: hashId(key + "#" + seen[key]), date: (date || "").trim(), type: type === "收入" ? "income" : type === "存錢" ? "saving" : "expense",
-        cat: (cat || "其他").trim(), amount: Number(amount), note: note || "", oneoff: one === "是", createdAt: Date.parse(date + "T12:00:00") || Date.now() }; });
+        cat: ((cat || "其他").trim() === "生活" ? "日用" : (cat || "其他").trim()), amount: Number(amount), note: note || "", oneoff: one === "是", createdAt: Date.parse(date + "T12:00:00") || Date.now() }; });
   }
   function parseBackup(raw){
     const text = String(raw || "").replace(/^﻿/, "").trim();
@@ -2368,8 +2541,8 @@
     $("recList").innerHTML = rs.length ? rs.map(r => {
       const nd = nextDue(r);
       return `<button class="item" data-r="${esc(r.id)}"><span class="ic">${emojiOf(r.kind === "saving" ? "saving" : "expense", r.cat)}</span>
-        <span class="mid"><div class="c">${esc(r.name || r.cat)}${r.paused ? '<span class="tag paused">暫停中</span>' : ""}</div>
-        <div class="n">${r.kind === "saving" ? "🌾 存錢・" : ""}每月 ${r.day} 號・${esc(r.cat)}${r.paused ? "" : `・下次 ${+nd.slice(5, 7)}/${+nd.slice(8)}`}</div></span>
+        <span class="mid"><div class="c">${esc(r.name || catName(r.cat))}${r.paused ? '<span class="tag paused">暫停中</span>' : ""}</div>
+        <div class="n">${r.kind === "saving" ? "🌾 存錢・" : ""}每月 ${r.day} 號・${esc(catName(r.cat))}${r.paused ? "" : `・下次 ${+nd.slice(5, 7)}/${+nd.slice(8)}`}</div></span>
         <span class="a ${r.kind === "saving" ? "sav" : ""}">${fmt(r.amount)}</span></button>`;
     }).join("") : `<div class="empty">還沒有固定項目<br>像房租、手機月租、定期定額這種每個月都會有的，設定一次就好</div>`;
   }
@@ -2383,7 +2556,7 @@
     document.querySelectorAll("#reSeg button").forEach(b => b.classList.toggle("on", b.dataset.k === rForm.kind));
     $("reName").placeholder = rForm.kind === "saving" ? "例如：0050 定期定額" : "例如：房租、Netflix、電話費";
     $("reTitle").textContent = (rForm.id ? "編輯" : "新增") + (rForm.kind === "saving" ? "固定存錢" : "固定支出");
-    $("reCats").innerHTML = CATS[rForm.kind].map(([c, em]) => `<button data-c="${c}" class="${c === rForm.cat ? "on" : ""}"><b>${em}</b>${c}</button>`).join("");
+    $("reCats").innerHTML = CATS[rForm.kind].map(([c, em]) => `<button data-c="${c}" class="${c === rForm.cat ? "on" : ""}"><b>${em}</b>${catName(c)}</button>`).join("");
   }
   document.querySelectorAll("#reSeg button").forEach(b => b.onclick = () => {
     if (rForm.kind === b.dataset.k) return;
