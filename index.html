@@ -234,6 +234,12 @@
   .pet-stage.hat .pet-say{bottom:128%}
   .pet-stage.hat.cloud .pet-say{bottom:150%}
   .pet-stage.cloud.hat .pet-cloud{top:-62%}
+  .smoke circle{opacity:0;animation:smoke 3.6s ease-out infinite;transform-box:fill-box;transform-origin:center}
+  .smoke circle:nth-child(2){animation-delay:1.2s}.smoke circle:nth-child(3){animation-delay:2.4s}
+  @keyframes smoke{0%{opacity:0;transform:translate(0,0) scale(.6)}15%{opacity:.75}100%{opacity:0;transform:translate(10px,-38px) scale(2.3)}}
+  .twinkle{animation:twinkle 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+  @keyframes twinkle{0%,100%{opacity:.3;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
+  @media (prefers-reduced-motion: reduce){ .smoke circle,.twinkle{animation:none!important} }
   .loc-quick{display:flex;flex-wrap:wrap;gap:6px}
   .loc-quick button,#locResults button{background:var(--bg);border-radius:99px;padding:5px 11px;font-size:13px}
   #locResults{display:flex;flex-wrap:wrap;gap:6px}
@@ -1148,7 +1154,18 @@
   // ---------- 鳳凰莊園 ----------
   // 所有等級都從記帳紀錄即時算出來，不另外存；建築不會降級。
   const lvBy = (v, th) => th.filter(t => v >= t).length;
-  const M_TH = { house: [7, 16, 21], field: [30, 90, 180, 365], pond: [7, 21, 60, 100], granary: [50000, 100000, 300000] };
+  const M_TH = { house: [7, 16, 21], field: [30, 90, 180, 365], pond: [7, 21, 60, 100], granary: [50000, 100000, 300000],
+    food: [10, 30, 60, 100, 150, 220, 300, 400, 550, 730] };
+  const FOOD_NAMES = ["路邊一口灶", "小吃推車", "麵攤", "小吃店", "自助餐", "兩層樓食堂", "餐館", "三層酒樓", "辦桌酒樓", "御膳樓"];
+  // 這個月到今天的餐飲，比上個月同期少 → 招牌發金光
+  function foodSaving(entries){
+    const t = todayStr(), ym = t.slice(0, 7), day = +t.slice(8), [y, mo] = ym.split("-").map(Number);
+    const pm = mo === 1 ? `${y - 1}-12` : `${y}-${pad(mo - 1)}`;
+    let cur = 0, prev = 0;
+    entries.forEach(e => { if (e.type !== "expense" || e.cat !== "餐飲" || !e.date) return;
+      if (e.date.startsWith(ym)) cur += e.amount; else if (e.date.startsWith(pm) && +e.date.slice(8) <= day) prev += e.amount; });
+    return prev > 0 && cur < prev;
+  }
   const sceneNow = () => window.__ledgerNow ? new Date(window.__ledgerNow) : new Date();   // 測試用可覆寫時間
   function manorState(g){
     const entries = [...state.entries.values()];
@@ -1156,8 +1173,10 @@
     const d = sceneNow(), mo = d.getMonth() + 1, h = d.getHours();
     const ym = `${d.getFullYear()}-${pad(mo)}`;
     return {
-      house: 1 + lvBy(g.lvl, M_TH.house), field: lvBy(g.days, M_TH.field), pond: lvBy(g.best, M_TH.pond),
+      house: 1 + lvBy(g.lvl, M_TH.house), food: lvBy(entries.filter(e => e.type === "expense" && e.cat === "餐飲").length, M_TH.food), field: lvBy(g.days, M_TH.field), pond: lvBy(g.best, M_TH.pond),
       granary: saved > 0 ? 1 + lvBy(saved, M_TH.granary) : 0, lanterns: g.okMonths, saved, g,
+      foodN: entries.filter(e => e.type === "expense" && e.cat === "餐飲").length, foodSave: foodSaving(entries),
+      meal: (h >= 7 && h < 9) || (h >= 11 && h < 13) || (h >= 17 && h < 19),
       thisMonth: entries.some(e => e.date && e.date.startsWith(ym)),
       over: state.budget > 0 && g.monthExp > state.budget,
       season: mo >= 3 && mo <= 5 ? "spring" : mo >= 6 && mo <= 8 ? "summer" : mo >= 9 && mo <= 11 ? "autumn" : "winter",
@@ -1214,11 +1233,11 @@
     } catch {}   // 沒網路就沿用上次的天氣
     wxBusy = false;
   }
-  const MW = 1080, MH = 200, GY = 178, BOT = 72;
+  const MW = 1320, MH = 200, GY = 178, BOT = 72;
   // 依螢幕高度決定放大倍率；多出來的高度補成上方天空、下方草地
   const dims = () => { const h = $("stage").clientHeight || innerHeight; const k = Math.max(1.15, Math.min(1.8, h / 620));
     const VH = Math.ceil(h / k); return { k, VH, TOP: Math.max(0, VH - MH - BOT) }; };
-  const PLOT = { gate: [0, 130], house: [130, 240], field: [370, 240], pond: [610, 190], granary: [800, 180], frontier: [980, 100] };
+  const PLOT = { gate: [0, 130], house: [130, 240], food: [370, 240], field: [610, 240], pond: [850, 190], granary: [1040, 180], frontier: [1220, 100] };
   const SEASON = {
     spring: { ground: "#a8d67c", hill: "#8cc56b", far: "#c3e2ae", tree: "#7cbf5a", road: "#ead6a8" },
     summer: { ground: "#8cc366", hill: "#67ac4b", far: "#a9d690", tree: "#4f9a3a", road: "#ead6a8" },
@@ -1240,6 +1259,104 @@
     return s;
   }
   function snowCap(points){ return `<polyline points="${points}" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`; }
+
+  // ----- 小錢食堂的 10 種造型 -----
+  function foodSVG(lv, x0, lit, meal, gold){
+    let s = "", l = "";
+    const eave = (x, y, w, c, trim) => `<path d="M${x - w / 2 - 8} ${y} Q${x - w / 2 - 3} ${y - 3} ${x - w / 2 + 6} ${y - 12} L${x + w / 2 - 6} ${y - 12} Q${x + w / 2 + 3} ${y - 3} ${x + w / 2 + 8} ${y} Z" fill="${c}"${trim ? ` stroke="#e8b923" stroke-width="1.5"` : ""}/>`
+      + `<path d="M${x - w / 2 - 8} ${y} q-4 -3 -1 -8 M${x + w / 2 + 8} ${y} q4 -3 1 -8" stroke="${trim ? "#e8b923" : c}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+    const win = (x, y, w = 14, h = 12) => { s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#5d3f26"/>`; if (lit) l += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#ffd36b"/><circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * .75}" fill="#ffc94d" opacity=".16"/>`; };
+    const sign = (x, y, w, t, always) => { const g = gold || always;
+      s += `<rect x="${x - w / 2}" y="${y - 8}" width="${w}" height="15" rx="2" fill="${g ? "#f2c230" : "#b7382b"}" stroke="${g ? "#b8860b" : "#7a2418"}"/>` + txt(x, y + 3.5, t, 10, g ? "#7a2414" : "#f6d77a", 700);
+      if (gold) [[-w / 2 - 6, -8], [w / 2 + 6, -6], [w / 2 - 4, -16]].forEach(([dx, dy]) => l += `<path d="M${x + dx} ${y + dy} l1.6 -5 l1.6 5 l5 1.6 l-5 1.6 l-1.6 5 l-1.6 -5 l-5 -1.6Z" fill="#fff3b0" class="twinkle"/>`); };
+    const bird = (x, y, c = "#ffd858") => `<ellipse cx="${x}" cy="${y}" rx="6" ry="6.5" fill="${c}"/><circle cx="${x + 2}" cy="${y - 2}" r="1.1" fill="#3a2f2a"/><path d="M${x + 5} ${y - .5} l3.5 1.2 l-3.5 1.2z" fill="#f08a24"/>`;
+    const stool = x => `<rect x="${x - 4}" y="${GY - 9}" width="8" height="2.5" fill="#d8352a"/><rect x="${x - 3}" y="${GY - 7}" width="1.5" height="7" fill="#a02a20"/><rect x="${x + 1.5}" y="${GY - 7}" width="1.5" height="7" fill="#a02a20"/>`;
+    const table = (x, w = 22) => `<rect x="${x - w / 2}" y="${GY - 17}" width="${w}" height="3" fill="#8a5a2b"/><rect x="${x - 1}" y="${GY - 14}" width="2" height="14" fill="#6b4422"/>`;
+    const lantern = (x, y) => { s += `<path d="M${x} ${y} v4" stroke="#6b4a2a"/><ellipse cx="${x}" cy="${y + 9}" rx="5" ry="5.5" fill="#d8352a"/><rect x="${x - 3}" y="${y + 3}" width="6" height="1.6" fill="#d9a400"/>`;
+      if (lit) l += `<circle cx="${x}" cy="${y + 9}" r="10" fill="#ffb347" opacity=".35"/><ellipse cx="${x}" cy="${y + 9}" rx="2.5" ry="3.5" fill="#ffd27a"/>`; };
+    const smoke = (x, y) => { if (meal) s += `<g class="smoke" fill="#fff"><circle cx="${x}" cy="${y}" r="4"/><circle cx="${x}" cy="${y}" r="4"/><circle cx="${x}" cy="${y}" r="4"/></g>`; };
+    const chimney = (x, y, h = 16) => { s += `<rect x="${x - 4}" y="${y - h}" width="8" height="${h}" fill="#8b5a3c"/><rect x="${x - 5}" y="${y - h - 2}" width="10" height="3" fill="#5f3b1a"/>`; smoke(x, y - h - 4); };
+    const wok = (x, y) => `<ellipse cx="${x}" cy="${y}" rx="15" ry="4.5" fill="#33302c"/><path d="M${x + 14} ${y - 1} l8 -5" stroke="#33302c" stroke-width="2.5" stroke-linecap="round"/>`;
+    // 三層酒樓（第 8–10 級共用）
+    const tower = (cx, k, top) => {
+      const T = [[160, 34, "#c65b3f"], [124, 28, "#cf6446"], [88, 24, "#d46d4f"]];
+      let y = GY;
+      T.forEach(([w0, h0, c], i) => {
+        const w = w0 * k, h = h0;
+        s += `<rect x="${cx - w / 2}" y="${y - h}" width="${w}" height="${h}" fill="${c}"/><rect x="${cx - w / 2}" y="${y - h}" width="3" height="${h}" fill="#8f2f20"/><rect x="${cx + w / 2 - 3}" y="${y - h}" width="3" height="${h}" fill="#8f2f20"/>`;
+        if (i === 0) { s += `<rect x="${cx - 9}" y="${GY - 24}" width="18" height="24" fill="#6b3a22"/>`; win(cx - w / 2 + 10, GY - 26, 14, 12); win(cx + w / 2 - 24, GY - 26, 14, 12); }
+        else for (let j = 0; j < (i === 1 ? 3 : 2); j++) win(cx - w / 2 + 10 + j * ((w - 34) / (i === 1 ? 2 : 1)), y - h + 7, 13, 11);
+        y -= h; s += eave(cx, y + 2, w + 6, "#3e3e46", top === "gold");
+        if (i === 0) [-.38, -.13, .13, .38].forEach(f => lantern(cx + f * w, y + 2));
+      });
+      s += `<path d="M${cx - 10} ${y - 10} L${cx} ${y - 20} L${cx + 10} ${y - 10}Z" fill="#3e3e46"/><circle cx="${cx}" cy="${y - 22}" r="3.5" fill="${top === "gold" ? "#f2c230" : "#c8932f"}"/>`;
+      return y;
+    };
+    const cx = x0 + 120;
+    if (lv === 1) {
+      s += `<rect x="${cx - 22}" y="${GY - 24}" width="44" height="24" fill="#b5652b"/><path d="M${cx - 22} ${GY - 16} h44 M${cx - 22} ${GY - 8} h44 M${cx - 8} ${GY - 24} v8 M${cx + 8} ${GY - 16} v8" stroke="#8b4a20"/>
+        <rect x="${cx - 8}" y="${GY - 14}" width="16" height="11" rx="3" fill="#3a2418"/>${wok(cx, GY - 26)}${stool(cx - 40)}`;
+      l += `<ellipse cx="${cx}" cy="${GY - 7}" rx="5" ry="4" fill="#ff9a3c"/>`; s += `<ellipse cx="${cx}" cy="${GY - 7}" rx="5" ry="4" fill="#ff8a2a"/>`;
+      smoke(cx - 4, GY - 34);
+      if (gold) [[-14, -46], [12, -52], [0, -60]].forEach(([dx, dy]) => l += `<path d="M${cx + dx} ${GY + dy} l1.6 -5 l1.6 5 l5 1.6 l-5 1.6 l-1.6 5 l-1.6 -5 l-5 -1.6Z" fill="#fff3b0" class="twinkle"/>`);
+    } else if (lv === 2) {
+      s += `<rect x="${cx + 26}" y="${GY - 76}" width="3" height="50" fill="#7a5530"/>
+        <path d="M${cx - 8} ${GY - 70} Q${cx + 27} ${GY - 96} ${cx + 62} ${GY - 70}Z" fill="#e2445c"/><path d="M${cx + 27} ${GY - 83} L${cx + 10} ${GY - 70} M${cx + 27} ${GY - 83} L${cx + 44} ${GY - 70}" stroke="#fff" stroke-width="5" opacity=".8"/>
+        <rect x="${cx - 36}" y="${GY - 36}" width="72" height="24" fill="#c98a4b"/><rect x="${cx - 38}" y="${GY - 38}" width="76" height="4" fill="#8a5a2b"/>
+        <circle cx="${cx - 22}" cy="${GY - 7}" r="7" fill="#444"/><circle cx="${cx + 22}" cy="${GY - 7}" r="7" fill="#444"/><circle cx="${cx - 22}" cy="${GY - 7}" r="2.5" fill="#999"/><circle cx="${cx + 22}" cy="${GY - 7}" r="2.5" fill="#999"/>
+        ${wok(cx - 12, GY - 40)}${stool(cx - 60)}${stool(cx + 56)}`;
+      sign(cx, GY - 24, 34, "小吃");
+      smoke(cx - 14, GY - 48);
+    } else if (lv === 3) {
+      s += `<rect x="${x0 + 28}" y="${GY - 64}" width="3" height="64" fill="#7a5530"/><rect x="${x0 + 210}" y="${GY - 58}" width="3" height="58" fill="#7a5530"/>
+        <polygon points="${x0 + 18},${GY - 62} ${x0 + 222},${GY - 56} ${x0 + 216},${GY - 70} ${x0 + 24},${GY - 76}" fill="#3f7fb8"/>
+        <rect x="${x0 + 40}" y="${GY - 28}" width="62" height="28" fill="#c98a4b"/><rect x="${x0 + 38}" y="${GY - 30}" width="66" height="4" fill="#8a5a2b"/>
+        <rect x="${x0 + 52}" y="${GY - 42}" width="22" height="12" rx="2" fill="#9aa3a8"/><ellipse cx="${x0 + 63}" cy="${GY - 42}" rx="11" ry="3" fill="#c6ccd0"/>
+        ${table(x0 + 145)}${table(x0 + 190)}${stool(x0 + 130)}${stool(x0 + 160)}${stool(x0 + 176)}${stool(x0 + 205)}${bird(x0 + 160, GY - 18)}`;
+      sign(x0 + 120, GY - 58, 30, "麵");
+      smoke(x0 + 63, GY - 50);
+    } else if (lv <= 5) {
+      const wide = lv === 5, L = x0 + (wide ? 18 : 36), R = x0 + (wide ? 194 : 176), W = R - L, H = 56;
+      s += `<rect x="${L}" y="${GY - H}" width="${W}" height="${H}" fill="#eadbb8"/><rect x="${L}" y="${GY - 10}" width="${W}" height="10" fill="#b5652b"/>`;
+      chimney(R - 16, GY - H - 6);
+      s += eave(L + W / 2, GY - H + 2, W + 8, "#3e3e46");
+      if (wide) {
+        s += `<rect x="${L + 12}" y="${GY - 42}" width="96" height="26" fill="#f7f1e3" stroke="#8a5a2b" stroke-width="2"/>`;
+        ["#e0b43a", "#5fb046", "#d8352a", "#f0997b", "#79c24f", "#c98a4b", "#ffd75e", "#e2445c"].forEach((c, i) => s += `<rect x="${L + 16 + (i % 4) * 23}" y="${GY - 38 + Math.floor(i / 4) * 11}" width="19" height="8" rx="2" fill="${c}"/>`);
+        s += `<rect x="${R - 40}" y="${GY - 34}" width="22" height="34" fill="#6b3a22"/>` + bird(x0 + 206, GY - 7) + bird(x0 + 220, GY - 7, "#ffe27a") + bird(x0 + 233, GY - 7, "#f7a537");
+        sign(L + W / 2, GY - H + 10, 52, "自助餐");
+      } else {
+        s += `<rect x="${L + W / 2 - 15}" y="${GY - 34}" width="30" height="34" fill="#3a2418"/><rect x="${L + W / 2 - 15}" y="${GY - 18}" width="30" height="6" fill="#c98a4b"/>` + table(x0 + 205) + stool(x0 + 194) + stool(x0 + 216);
+        win(L + 12, GY - 36); win(R - 26, GY - 36);
+        sign(L + W / 2, GY - H + 10, 48, "小吃店");
+      }
+    } else if (lv <= 7) {
+      const L = x0 + 28, R = x0 + 204, W = R - L, red = lv === 7;
+      const wall = red ? "#f3e3c3" : "#eadbb8";
+      s += `<rect x="${L}" y="${GY - 40}" width="${W}" height="40" fill="${wall}"/><rect x="${L + 8}" y="${GY - 78}" width="${W - 16}" height="36" fill="${wall}"/>`;
+      chimney(R - 22, GY - 84);
+      s += eave(L + W / 2, GY - 76, W - 4, "#3e3e46") + eave(L + W / 2, GY - 38, W + 6, "#4a4a52");
+      if (red) s += `<rect x="${L}" y="${GY - 40}" width="5" height="40" fill="#b7382b"/><rect x="${R - 5}" y="${GY - 40}" width="5" height="40" fill="#b7382b"/><rect x="${L + 8}" y="${GY - 78}" width="5" height="36" fill="#b7382b"/><rect x="${R - 13}" y="${GY - 78}" width="5" height="36" fill="#b7382b"/>`;
+      s += `<rect x="${L + W / 2 - 13}" y="${GY - 28}" width="26" height="28" fill="#6b3a22"/>`;
+      win(L + 14, GY - 30); win(R - 28, GY - 30);
+      [0, 1, 2].forEach(i => win(L + 22 + i * ((W - 58) / 2), GY - 70, 14, 12));
+      if (red) [.12, .36, .64, .88].forEach(f => lantern(L + f * W, GY - 38));
+      sign(L + W / 2, GY - 46, 44, red ? "餐館" : "食堂");
+    } else {
+      const big = lv === 8;
+      tower(big ? cx : x0 + 82, big ? 1 : .86, lv === 10 ? "gold" : "");
+      sign(big ? cx : x0 + 82, GY - 30, 40, lv === 10 ? "御膳樓" : "酒樓", lv === 10);
+      chimney(big ? cx + 70 : x0 + 142, GY - 36, 12);
+      if (!big) {
+        s += `<rect x="${x0 + 152}" y="${GY - 52}" width="2.5" height="52" fill="#7a5530"/><rect x="${x0 + 234}" y="${GY - 52}" width="2.5" height="52" fill="#7a5530"/>`;
+        for (let i = 0; i < 6; i++) s += `<polygon points="${x0 + 148 + i * 15},${GY - 50} ${x0 + 163 + i * 15},${GY - 50} ${x0 + 160 + i * 15},${GY - 60} ${x0 + 151 + i * 15},${GY - 60}" fill="${i % 2 ? "#ffffff" : "#e2445c"}"/>`;
+        [x0 + 172, x0 + 214].forEach(tx => s += `<rect x="${tx - 1}" y="${GY - 12}" width="2" height="12" fill="#6b4422"/><ellipse cx="${tx}" cy="${GY - 13}" rx="16" ry="4.5" fill="#d8352a"/>`
+          + bird(tx - 14, GY - 10) + bird(tx + 13, GY - 10, "#f7a537") + `<ellipse cx="${tx}" cy="${GY - 16}" rx="5" ry="2" fill="#f0c94a"/>`);
+        if (lv === 10) l += `<circle cx="${x0 + 82}" cy="${GY - 30}" r="26" fill="#ffd75e" opacity=".22"/>`;
+      }
+    }
+    return { s, l };
+  }
 
   function sceneSVG(m, D){
     // winter＝真的下雪（積雪、結冰）；季節的冬天另外看 m.season
@@ -1277,7 +1394,7 @@
     for (let x = 14; x < MW; x += 46) s += `<rect x="${x}" y="190" width="14" height="3" rx="1.5" fill="#fff" opacity=".35"/>`;
     // 點綴的樹
     const tree = x => `<rect x="${x - 2}" y="150" width="4" height="28" fill="#7a5530"/><circle cx="${x}" cy="146" r="13" fill="${P.tree}"/><circle cx="${x - 8}" cy="154" r="9" fill="${P.tree}"/>${winter ? `<path d="M${x - 11} 140 Q${x} 128 ${x + 11} 140" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>` : ""}`;
-    [124, 366, 604, 796].forEach(x => s += tree(x));
+    [124, 366, 606, 846, 1036].forEach(x => s += tree(x));
 
     // 大門（牌樓）
     s += `<rect x="28" y="92" width="9" height="86" fill="#b7382b"/><rect x="93" y="92" width="9" height="86" fill="#b7382b"/>
@@ -1307,6 +1424,13 @@
       win(272, 144); win(322, 144);
       if (m.house >= 4) s += `<rect x="288" y="132" width="32" height="11" rx="1.5" fill="#f2c230" stroke="#b8860b"/>${txt(304, 141, "鳳棲", 9, "#7a3b00", 700)}`;
       if (winter) s += snowCap("264,111 344,111") + snowCap("242,133 260,133") + snowCap("348,133 366,133");
+    }
+
+    // 小錢食堂：累計記餐飲筆數
+    {
+      const [x0, w] = PLOT.food;
+      if (!m.food) s += lockedPlot(x0, w, "小錢食堂", `累計記餐飲 ${m.foodN} / 10 筆`);
+      else { const r = foodSVG(m.food, x0, night || m.time === "dusk", m.meal, m.foodSave); s += r.s; lights += r.l; }
     }
 
     // 稻田：累計記帳天數
@@ -1389,7 +1513,7 @@
     // 紅燈籠：守住預算一個月掛一盞
     if (m.lanterns) {
       const glow = night || m.time === "dusk"; let lan = "";
-      const n = Math.min(m.lanterns, 11), x1 = 140 + n * 80;
+      const n = Math.min(m.lanterns, 14), x1 = 140 + n * 80;
       let rope = "M140 10";
       for (let i = 0; i < n; i++) rope += ` Q${180 + i * 80} 26 ${220 + i * 80} 10`;
       lan += `<path d="${rope}" stroke="${night ? "#a88a6a" : "#6b4a2a"}" stroke-width="1.5" fill="none"/><rect x="${x1 - 2}" y="4" width="4" height="10" fill="#6b4a2a"/><rect x="138" y="4" width="4" height="10" fill="#6b4a2a"/>`;
@@ -1405,7 +1529,7 @@
 
     const shade = night ? `<rect width="${MW}" height="${MH}" fill="#0b1633" opacity=".42"/>` : m.time === "dusk" ? `<rect width="${MW}" height="${MH}" fill="#c0603a" opacity=".1"/>` : "";
     const hits = Object.entries(PLOT).map(([key, [x, w]]) => `<rect data-plot="${key}" x="${x}" y="80" width="${w}" height="${MH - 80}" fill="transparent"/>`).join("")
-      + (m.lanterns ? `<rect data-plot="lantern" x="130" y="0" width="${Math.min(m.lanterns, 11) * 80 + 20}" height="44" fill="transparent"/>` : "");
+      + (m.lanterns ? `<rect data-plot="lantern" x="130" y="0" width="${Math.min(m.lanterns, 14) * 80 + 20}" height="44" fill="transparent"/>` : "");
     const shadeAll = shade.replace(`height="${MH}"`, `height="${VH}"`);
     return `<svg width="${Math.round(MW * k)}" height="${Math.round(VH * k)}" viewBox="0 0 ${MW} ${VH}" role="img" aria-label="鳳凰莊園">${outer}
       <g transform="translate(0 ${TOP})">${s}</g><rect y="${TOP + MH}" width="${MW}" height="${VH - TOP - MH + 1}" fill="${P.ground}"/>
@@ -1420,6 +1544,9 @@
     if (k === "field") return `🌾 稻田 Lv ${m.field}：累計記帳 ${m.g.days} 天` + (m.field < 4 ? `。滿 ${M_TH.field[m.field]} 天升級` : "。稻浪一片，滿級了！") + (m.over ? "（這個月超支，田裡長雜草了）" : m.thisMonth ? "" : "（這個月還沒記帳，田有點乾）");
     if (k === "pond") return `🪷 荷花池 Lv ${m.pond}：最長連續記帳 ${m.g.best} 天` + (m.pond < 4 ? `。破紀錄到 ${M_TH.pond[m.pond]} 天升級` : "。錦鯉都來了，滿級！");
     if (k === "granary") return m.granary ? `🏦 糧倉 Lv ${m.granary}：累計存了 ${fmt(m.saved)}` + (m.granary < 4 ? `。存到 ${fmt(M_TH.granary[m.granary - 1])} 升級` : "。金庫滿到發光了！") : "🏦 糧倉：記一筆「存錢」（或設定固定存錢）就會蓋好";
+    if (k === "food") return m.food ? `🍜 小錢食堂 Lv ${m.food}「${FOOD_NAMES[m.food - 1]}」：累計記了 ${m.foodN} 筆餐飲`
+      + (m.food < 10 ? `。滿 ${M_TH.food[m.food]} 筆變成「${FOOD_NAMES[m.food]}」` : "。滿級了，御膳樓開張！") + (m.foodSave ? "（這個月餐飲比上個月同期省，招牌發金光 ✨）" : "")
+      : `🍜 小錢食堂：記滿 10 筆餐飲就會開張（目前 ${m.foodN} 筆）`;
     if (k === "lantern") return `🏮 已掛 ${m.lanterns} 盞燈籠：每守住一個月的預算，就多掛一盞`;
     return "🎋 更多建築（市集、學堂、藥草園、鳳凰神殿）還在開發中，敬請期待！";
   }
@@ -1591,9 +1718,10 @@
   $("homeClose").onclick = closeHome;
   addEventListener("keydown", e => { if (e.key === "Escape" && homeOpen && !openSheetEl && !reportOpen) closeHome(); }, true);
 
-  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary]; };
+  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary, m.food]; };
   function manorNews(a, b){
     if (!a[2] && b[2]) return "🏦 莊園蓋好糧倉了！往右滑去看看 🎉";
+    if (b[3] > a[3]) return a[3] ? `🍜 小錢食堂升級成「${FOOD_NAMES[b[3] - 1]}」了！往右滑去看看 🎉` : "🍜 小錢食堂開張了！就在大宅旁邊 🎉";
     const names = ["🌾 稻田", "🪷 荷花池", "🏦 糧倉"];
     const up = names.filter((_, i) => b[i] > a[i]);
     return up.length ? `${up.join("、")}升級了！往右滑去看看 🎉` : "";

@@ -1,5 +1,5 @@
 // 讓 App 沒網路也能打開。更新 App 時把版本號 +1。
-const VERSION = "ledger-v8";
+const VERSION = "ledger-v9";
 const SHELL = ["./", "./index.html", "./config.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
