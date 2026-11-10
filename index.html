@@ -266,9 +266,23 @@
   .beast.grown:before{content:"";position:absolute;inset:8% 4% 0;border-radius:50%;background:radial-gradient(rgba(255,226,140,.55),rgba(255,226,140,0) 70%);pointer-events:none}
   .beast .bsay{position:absolute;bottom:92%;left:50%;transform:translateX(-50%);background:var(--card);color:var(--ink);font-size:11px;border-radius:10px;padding:2px 7px;white-space:nowrap;box-shadow:var(--shadow);animation:crow 6s ease-in-out infinite}
   @keyframes crow{0%,55%,100%{opacity:0}62%,90%{opacity:1}}
+  .beast.far{opacity:.85;filter:saturate(.8)}
+  .beast .nbang{position:absolute;right:105%;bottom:30%;font-size:14px;font-weight:800;color:#d8352a;white-space:nowrap;text-shadow:0 0 4px #fff,0 0 2px #fff;opacity:0;animation:nbang 9s linear infinite}
+  .beast.nianfest .bflip{animation:nianrun 9s linear infinite}
+  @keyframes nianrun{0%{transform:translateX(700%) scaleX(-1);opacity:0}6%{opacity:1}30%,40%{transform:translateX(0) scaleX(-1)}43%{transform:translate(10%,-35%) scaleX(1)}47%{transform:translate(40%,0) scaleX(1)}72%{transform:translateX(800%) scaleX(1);opacity:1}76%,100%{transform:translateX(800%) scaleX(1);opacity:0}}
+  @keyframes nbang{0%,38%{opacity:0;transform:scale(.6)}41%{opacity:1;transform:scale(1.2)}52%{opacity:1;transform:scale(1)}58%,100%{opacity:0}}
+  .beast.race{animation:race 15s linear infinite}
+  @keyframes race{from{transform:translateX(0)}to{transform:translateX(var(--dist))}}
+  .beast.race svg{animation:hop .3s ease-in-out infinite}
+  .beast.kunfly{animation:kunfly 70s linear infinite;animation-delay:-20s}
+  @keyframes kunfly{0%{transform:translateX(0)}55%{transform:translateX(var(--dist))}55.01%,100%{transform:translateX(var(--dist));visibility:hidden}}
+  .beast.kunfly svg{animation:kunbob 3s ease-in-out infinite}
+  @keyframes kunbob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12%) rotate(2deg)}}
+  .beast.orbit{animation:orbit 14s linear infinite}
+  .beast.orbit svg{animation:kunbob 2.4s ease-in-out infinite}
   .lion{animation:lion .7s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
   @keyframes lion{0%,100%{transform:rotate(-4deg) translateY(0)}50%{transform:rotate(4deg) translateY(-3px)}}
-  @media (prefers-reduced-motion: reduce){ .lion,.beast svg,.beast .bsay{animation:none!important} .beast .bsay{opacity:1} }
+  @media (prefers-reduced-motion: reduce){ .lion,.beast,.beast svg,.beast .bflip,.beast .bsay,.beast .nbang{animation:none!important} .beast .bsay,.beast .nbang{opacity:1} .beast.kunfly{transform:translateX(calc(var(--dist) * .3))} }
   .bs-temple{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.5}
   .bs-row{display:flex;gap:10px;padding:10px 0;border-top:1px solid rgba(0,0,0,.07)}
   .bs-row.off{opacity:.55}
@@ -678,6 +692,7 @@
     recurring: [],        // 固定支出／固定存錢規則
     sweep: "",            // 月底結餘已經問到哪個月（YYYY-MM）
     loc: null,            // 莊園天氣地區 { name, lat, lon }
+    seen: [],             // 打開過月報表的月份（YYYY-MM，白澤／學堂用）
     ym: (() => { const d = new Date(); return [d.getFullYear(), d.getMonth()+1]; })(),
     catTab: "expense",
     q: ""
@@ -687,7 +702,7 @@
   const LS_KEY = "ledger.v1";
   const local = {
     load(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; } },
-    save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ entries:[...state.entries.values()], budget: state.budget, petName: state.petName, recurring: state.recurring, sweep: state.sweep, loc: state.loc })); } catch {} }
+    save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ entries:[...state.entries.values()], budget: state.budget, petName: state.petName, recurring: state.recurring, sweep: state.sweep, loc: state.loc, seen: state.seen })); } catch {} }
   };
   let cloud = null; // { entriesCol, settingsDoc }
   let readOnly = false;
@@ -704,10 +719,11 @@
     if (r.kind === "saving") o.kind = "saving";   // 固定存錢（沒有這欄＝固定支出）
     return o; };
   const validYm = s => typeof s === "string" && /^\d{4}-\d{2}$/.test(s);
+  const cleanSeen = a => Array.isArray(a) ? [...new Set(a.filter(validYm))].sort().slice(-240) : [];
   const cleanLoc = l => l && typeof l.lat === "number" && typeof l.lon === "number" && Math.abs(l.lat) <= 90 && Math.abs(l.lon) <= 180
     ? { name: String(l.name || "").slice(0, 20) || "我的位置", lat: Math.round(l.lat * 100) / 100, lon: Math.round(l.lon * 100) / 100 } : null;
   const settingsData = () => { const o = { budget: state.budget, petName: state.petName, recurring: state.recurring.map(cleanRule) };
-    if (validYm(state.sweep)) o.sweep = state.sweep; o.loc = state.loc || null; return o; };
+    if (validYm(state.sweep)) o.sweep = state.sweep; o.loc = state.loc || null; o.seen = cleanSeen(state.seen); return o; };
 
   async function putEntry(e){
     state.entries.set(e.id, e); render();
@@ -751,6 +767,7 @@
     if (Array.isArray(saved.recurring)) state.recurring = saved.recurring.filter(validRule).map(cleanRule);
     if (validYm(saved.sweep)) state.sweep = saved.sweep;
     state.loc = cleanLoc(saved.loc);
+    state.seen = cleanSeen(saved.seen);
   }
 
   // ---------- Firebase 雲端同步 ----------
@@ -796,7 +813,7 @@
     const canMigrate = !prevUid || prevUid === u.uid;   // 不把別人的本機資料搬進這個帳號
     const pre = canMigrate ? [...state.entries.values()] : [];
     const preSettings = settingsData();
-    if (!canMigrate) { state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = ""; state.loc = null; outbox.clear(); }
+    if (!canMigrate) { state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = ""; state.loc = null; state.seen = []; outbox.clear(); }
     lsSet(UID_KEY, u.uid);
     cloud = {
       entriesCol: { doc: id => ({ set: d => F.setDoc(F.doc(col, id), d), delete: () => F.deleteDoc(F.doc(col, id)) }) },
@@ -836,6 +853,8 @@
         const d = s.data(); state.budget = typeof d.budget === "number" ? d.budget : 0;
         if (typeof d.petName === "string" && d.petName) state.petName = d.petName.slice(0, 10);
         if (validYm(d.sweep) && d.sweep > state.sweep) state.sweep = d.sweep;
+        { const cs = cleanSeen(d.seen), all = cleanSeen([...cs, ...state.seen]);   // 月報表紀錄：兩邊合併，本機多的補上傳
+          state.seen = all; if (!s.metadata.fromCache && all.length > cs.length) cloud.settingsDoc.set(settingsData()).catch(handleWriteErr); }
         if (d.loc !== undefined) { state.loc = cleanLoc(d.loc); fetchWx(); }
         else if (!s.metadata.fromCache && canMigrate && preSettings.loc) cloud.settingsDoc.set(settingsData()).catch(handleWriteErr);
         if (Array.isArray(d.recurring)) state.recurring = d.recurring.filter(validRule).map(cleanRule);
@@ -898,7 +917,7 @@
     if (!logoutArmed) { $("acLogout").textContent = "確定登出？（雲端資料會保留）"; $("acLogout").classList.add("armed"); logoutArmed = setTimeout(disarmLogout, 3000); return; }
     disarmLogout();
     try { await fb.A.signOut(fb.auth); } catch {}
-    state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = ""; state.loc = null;
+    state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = ""; state.loc = null; state.seen = [];
     lsSet(LS_KEY, null); lsSet(UID_KEY, null); outbox.clear();
     closeSheet(); render(); toast("已登出");
   };
@@ -1537,7 +1556,7 @@
     return { s, l };
   }
 
-  // ---------- 神獸殿＋培養神獸（第一批 10 隻） ----------
+  // ---------- 神獸殿＋培養神獸（20 隻） ----------
   // 進度全部從紀錄即時算；用「歷史最佳」決定階段，所以長大了就不會退回去。
   const B_STAGE = ["尚未出現", "神獸蛋", "幼獸", "少年", "神獸"];
   const stageOfP = p => p <= 0 ? 0 : p < 1 / 3 ? 1 : p < 2 / 3 ? 2 : p < 1 ? 3 : 4;
@@ -1553,9 +1572,20 @@
     { id: "jingwei", em: "🐦", name: "精衛", where: "荷花池邊", home: [1440, 1494], foot: 176, size: 26, speed: 40, egg: ["#eef0f4", "#f29bbd"] },
     { id: "toad", em: "🐸", name: "三腳金蟾", where: "糧倉旁的大銅錢上", home: [1516, 1516], foot: GY, size: 30, still: true, egg: ["#fff1c4", "#e9b93a"] },
     { id: "taotie", em: "🍖", name: "饕餮", where: "小錢食堂後廚", home: [592, 592], foot: GY, size: 36, still: true, egg: ["#efe8f8", "#8a6bbf"] },
+    { id: "baize", em: "📜", name: "白澤", where: "大宅旁（學堂蓋好會搬過去）", home: [326, 362], foot: GY, size: 40, speed: 14, egg: ["#f4f6fb", "#6a8fd0"] },
+    { id: "suanni", em: "🏮", name: "狻猊", where: "神獸殿香爐頂上", home: [2164, 2164], foot: GY - 18, size: 24, still: true, noShadow: true, egg: ["#fff0d6", "#2f8f83"], eggAt: [2190, GY] },
+    { id: "nian", em: "🧨", name: "年獸", where: "遠山的霧裡（春節廟會會跑到大門口）", home: [1730, 1830], foot: 112, size: 24, speed: 6, far: true, egg: ["#ffe1d6", "#d8352a"] },
+    { id: "tiger", em: "🐯", name: "白虎", where: "莊園大門（鎮守西方）", home: [100, 122], foot: GY, size: 40, speed: 10, egg: ["#f8f8f4", "#3a3a40"] },
+    { id: "koi", em: "🐟", name: "錦鯉", where: "荷花池裡", home: [1352, 1458], foot: 167, size: 26, speed: 16, noShadow: true, egg: ["#fff4ec", "#f07c2c"], eggAt: [1374, 174] },
+    { id: "kun", em: "🐋", name: "鯤鵬", where: "莊園上空（偶爾飛過）", home: [1712, 1712], foot: 40, size: 56, fly: true, noShadow: true, egg: ["#e4f0fb", "#3f78c0"], eggAt: [1712, GY] },
+    { id: "xiezhi", em: "🐐", name: "獬豸", where: "大宅門口", home: [222, 278], foot: GY, size: 38, speed: 10, egg: ["#e8eef0", "#2c5f6b"] },
     { id: "rabbit", em: "🐰", name: "玉兔", where: "月亮上（只在晚上出現）", home: [66, 66], foot: 27, size: 24, still: true, night: true, egg: ["#ffffff", "#f6b6c8"] },
-    { id: "rooster", em: "🐓", name: "金雞", where: "稻田稻草人旁", home: [1204, 1244], foot: GY, size: 30, speed: 26, egg: ["#fff4dc", "#e2302a"] }
+    { id: "rooster", em: "🐓", name: "金雞", where: "稻田稻草人旁", home: [1204, 1244], foot: GY, size: 30, speed: 26, egg: ["#fff4dc", "#e2302a"] },
+    { id: "crane", em: "🦢", name: "仙鶴", where: "竹林邊的水池", home: [1846, 1870], foot: GY - 1, size: 40, speed: 8, egg: ["#ffffff", "#e2302a"] },
+    { id: "tianma", em: "🐎", name: "天馬", where: "小錢驛站（尖峰時間跟公車賽跑）", home: [880, 1040], foot: GY, size: 44, speed: 36, egg: ["#f6f8fc", "#9bb8e8"] },
+    { id: "dragon", em: "🐉", name: "神龍", where: "神獸殿上空的雲（繞廟飛）", home: [2130, 2130], foot: GY - 100, size: 58, fly: true, noShadow: true, egg: ["#e3f6ea", "#2f9a5a"], eggAt: [2244, GY] }
   ];
+  const FESTS = ["除夕", "春節", "清明", "端午", "中秋"];
   const ymAdd = (ym, n) => { let [y, m] = ym.split("-").map(Number); m += n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return `${y}-${pad(m)}`; };
   // 一串月份裡，最長連續幾個月、到現在（這個月或上個月）還連著幾個月
   function monthRuns(yms, thisYm){
@@ -1564,21 +1594,31 @@
     return { best, cur: prev && (prev === thisYm || ymAdd(prev, 1) === thisYm) ? run : 0 };
   }
   function beastState(g, entries, saved){
-    const thisYm = todayStr().slice(0, 7), mon = {};
-    const M = k => mon[k] = mon[k] || { n: 0, exp: 0, food: 0, inc: 0, dca: false };
-    const cats = new Set(); let night = 0, morning = 0;
+    const today = todayStr(), thisYm = today.slice(0, 7), mon = {};
+    const M = k => mon[k] = mon[k] || { n: 0, exp: 0, food: 0, shop: 0, inc: 0, sav: 0, dca: false, days: new Set() };
+    const cats = new Set(), fests = new Set(); let night = 0, morning = 0, notes = 0, train = 0, first = "";
     entries.forEach(e => {
       if (!e.date) return; const x = M(e.date.slice(0, 7)); x.n++;
-      if (e.type === "expense") { cats.add(e.cat); if (!e.oneoff) x.exp += e.amount; if (e.cat === "餐飲") x.food += e.amount; }
+      if (e.type === "expense") { cats.add(e.cat); if (!e.oneoff) x.exp += e.amount; if (e.cat === "餐飲") x.food += e.amount; if (e.cat === "購物") x.shop += e.amount; if (e.cat === "交通") train++; }
       if (e.type === "income" && e.amount > 0) x.inc += e.amount;
-      if (e.type === "saving" && e.cat === "定期定額") x.dca = true;
-      if (!e.rec && e.createdAt) { const h = new Date(e.createdAt).getHours(); if (h >= 21) night++; if (h < 9) morning++; }
+      if (e.type === "saving") { x.sav += e.amount; if (e.cat === "定期定額") x.dca = true; }
+      const day = dayOf(e.createdAt || Date.parse(e.date)); M(day.slice(0, 7)).days.add(day); if (!first || day < first) first = day;
+      if (!e.rec && e.createdAt) { const h = new Date(e.createdAt).getHours(); if (h >= 21) night++; if (h < 9) morning++;
+        const f = festAt(e.createdAt); if (f) fests.add(f); }
+      if (!e.rec && e.note && String(e.note).trim()) notes++;
     });
     const keys = Object.keys(mon);
     const dca = monthRuns(keys.filter(k => mon[k].dca), thisYm);
     const ok = monthRuns(state.budget > 0 ? keys.filter(k => k < thisYm && mon[k].n >= 5 && mon[k].exp <= state.budget) : [], thisYm);
-    const less = monthRuns(keys.filter(k => { const p = mon[ymAdd(k, -1)]; return k < thisYm && p && p.food > 0 && mon[k].food < p.food; }), thisYm);
+    const lessOf = f => monthRuns(keys.filter(k => { const p = mon[ymAdd(k, -1)]; return k < thisYm && p && p[f] > 0 && mon[k][f] < p[f]; }), thisYm);
+    const less = lessOf("food"), lessShop = lessOf("shop");
     const incM = keys.filter(k => mon[k].inc > 0).length, nCat = Math.min(9, cats.size);
+    // 錦鯉：哪個月記帳天數比例最高（整個月每天都有＝全勤）
+    let koi = [0, 0, 31];
+    keys.forEach(k => { const [y, mm] = k.split("-").map(Number), dim = new Date(y, mm, 0).getDate(), n = mon[k].days.size;
+      if (n / dim > koi[0]) koi = [n / dim, n, dim]; });
+    const kunM = keys.filter(k => k < thisYm && mon[k].inc > 0 && mon[k].sav >= mon[k].inc * .3).length;
+    const span = first ? dayDiff(first, today) + 1 : 0, seenN = state.seen.length;
     const v = {
       phoenix: [g.lvl / 21, `${state.petName} Lv ${g.lvl} / 21，變成浴火鳳凰就算一隻`],
       turtle: [dca.best / 24, `「定期定額」最長連續 ${dca.best} / 24 個月（目前連續 ${dca.cur} 個月）`],
@@ -1588,19 +1628,43 @@
       jingwei: [g.best / 365, `最長連續記帳 ${g.best} / 365 天`],
       toad: [incM / 12, `有記收入的月份 ${incM} / 12 個月`],
       taotie: [less.best / 3, `餐飲連續比上個月少 ${less.best} / 3 個月（目前連續 ${less.cur} 個月）`],
+      baize: [seenN / 12, `看過月報表的月份 ${seenN} / 12 個月（每個月打開一次「📊 月報表」就算）`],
+      nian: [span / 365, `從第一筆帳算起 ${Math.min(span, 365)} / 365 天`],
+      tiger: [lessShop.best / 3, `購物連續比上個月少 ${lessShop.best} / 3 個月（目前連續 ${lessShop.cur} 個月）`],
+      koi: [koi[0], koi[1] ? `記帳天數最多的一個月：${koi[1]} / ${koi[2]} 天（整個月每天都有記帳就長成）` : "有一個月每天都記帳（全勤月）"],
+      kun: [kunM / 3, `存錢佔收入 30% 以上的月份 ${kunM} / 3 個月（看已結束的月份）`],
+      xiezhi: [notes / 100, `有寫備註的帳 ${notes} / 100 筆`],
       rabbit: [night / 100, `晚上 9 點後記帳 ${night} / 100 筆`],
-      rooster: [morning / 100, `早上 9 點前記帳 ${morning} / 100 筆`]
+      rooster: [morning / 100, `早上 9 點前記帳 ${morning} / 100 筆`],
+      crane: [entries.length / 1000, `累計記帳 ${entries.length} / 1000 筆`],
+      tianma: [train / 240, `交通 ${train} / 240 筆（小錢驛站滿級）`]
     };
-    const list = BEASTS.map(b => { const [p, line] = v[b.id]; const pp = Math.max(0, Math.min(1, p || 0));
-      return { ...b, p: pp, st: b.id === "phoenix" ? (pp >= 1 ? 4 : 0) : stageOfP(pp), line, tails: nCat }; });
-    const grown = list.filter(b => b.st === 4).length;
-    return { list, grown, temple: lvBy(grown, TEMPLE_TH) };
+    const mk = (b, p, line) => { const pp = Math.max(0, Math.min(1, p || 0));
+      return { ...b, p: pp, st: b.id === "phoenix" ? (pp >= 1 ? 4 : 0) : stageOfP(pp), line, tails: nCat }; };
+    const list = BEASTS.map(b => v[b.id] ? mk(b, ...v[b.id]) : { ...b });
+    // 狻猊要等神獸殿蓋好（至少養成一隻）
+    const base = list.filter(b => b.st === 4).length, fl = FESTS.filter(f => fests.has(f));
+    const iS = list.findIndex(b => b.id === "suanni");
+    list[iS] = mk(BEASTS[iS], base ? fl.length / 5 : 0, base ? `五大節日當天記帳：${fl.length ? fl.join("、") : "還沒有"}（${fl.length} / 5）` : "神獸殿蓋好（養成第一隻神獸）後，在除夕、春節、清明、端午、中秋記帳");
+    const others = list.filter(b => b.st === 4).length, iD = list.findIndex(b => b.id === "dragon");
+    list[iD] = mk(BEASTS[iD], others / 19, `其他 19 隻神獸養成 ${others} / 19 隻`);
+    const grown = list.filter(b => b.st === 4).length, temple = lvBy(grown, TEMPLE_TH);
+    list[iS].foot = temple >= 2 ? GY - 18 : GY - 12;
+    return { list, grown, temple };
   }
 
   // 廟會：台灣會放假的傳統節慶
   let festCache = ["", ""];
   function festOf(d){
     const key = d.toDateString(); if (festCache[0] === key) return festCache[1];
+    const r = festCalc(d); festCache = [key, r]; return r;
+  }
+  const festMemo = new Map();
+  function festAt(ms){   // 狻猊用：某一筆帳記下的那天是不是節日（只查可能有節日的月份）
+    const d = new Date(ms); if (![1, 2, 4, 5, 6, 9, 10].includes(d.getMonth() + 1)) return "";
+    const key = d.toDateString(); if (!festMemo.has(key)) festMemo.set(key, festCalc(d)); return festMemo.get(key);
+  }
+  function festCalc(d){
     let r = ""; const md = (d.getMonth() + 1) * 100 + d.getDate();
     if (md === 404 || md === 405) r = "清明";
     else try {
@@ -1609,12 +1673,86 @@
       const [m, dd] = lm(d), t = new Date(d); t.setDate(t.getDate() + 1); const [m2, d2] = lm(t);
       r = m === "1" && dd <= 3 ? "春節" : m === "5" && dd === 5 ? "端午" : m === "8" && dd === 15 ? "中秋" : m2 === "1" && d2 === 1 ? "除夕" : "";
     } catch {}
-    festCache = [key, r]; return r;
+    return r;
   }
 
   // ----- 神獸造型（60×60，面向右，腳在 y=58） -----
   const bEye = (x, y, r = 2.6) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#3a2f2a"/><circle cx="${x + r * .35}" cy="${y - r * .35}" r="${r * .35}" fill="#fff"/>`;
   const BEAST_ART = {
+    baize: a => `<path d="M12 40 q-8 -6 -6 -14 q3 6 8 6" fill="#dfe6f4" stroke="#b9c6e0" stroke-width=".8"/>
+      ${[17, 23, 33, 39].map(x => `<rect x="${x - 2}" y="44" width="4" height="12" rx="1.8" fill="#eef2fa"/><rect x="${x - 2.3}" y="54" width="4.6" height="3.6" rx="1" fill="#8a94b0"/>`).join("")}
+      <ellipse cx="28" cy="42" rx="16" ry="10" fill="#f4f6fb" stroke="#d6deee" stroke-width=".8"/>
+      ${[[20, 40], [28, 37], [34, 44]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.4" fill="none" stroke="#6a8fd0" stroke-width="1"/><circle cx="${x}" cy="${y}" r=".9" fill="#6a8fd0"/>`).join("")}
+      <path d="M37 40 Q40 30 43 26 L50 28 Q47 36 43 45Z" fill="#f4f6fb"/>
+      <path d="M41 17 q-6 -6 -12 -2 q5 0 7 4 M49 15 q3 -8 10 -6 q-5 2 -6 7" stroke="#c9a84a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <ellipse cx="46" cy="22" rx="8.5" ry="7.5" fill="#f4f6fb" stroke="#d6deee" stroke-width=".8"/><ellipse cx="53" cy="25" rx="4.4" ry="3.4" fill="#fff"/>
+      ${bEye(47, 20.5, 2.3)}<circle cx="47" cy="15.5" r="1.5" fill="#6a8fd0"/><path d="M50 28 q1 7 -3 10 q0 -5 -1 -9Z" fill="#e8ecf6"/>
+      <g transform="rotate(-12 54 38)"><rect x="49" y="34" width="12" height="8" rx="1.5" fill="#f2e3b8" stroke="#b08a4a" stroke-width=".8"/><rect x="48" y="33" width="2.4" height="10" rx="1" fill="#b08a4a"/><path d="M52 37 h6 M52 39.5 h5" stroke="#8a6b44" stroke-width=".7"/></g>
+      ${a ? `<path d="M30 10 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    suanni: a => `<path d="M14 50 q-9 -2 -8 -12 q4 5 8 5" fill="#2f8f83"/>
+      <ellipse cx="30" cy="50" rx="15" ry="8" fill="#e0a93a"/><rect x="18" y="50" width="6" height="8" rx="2.5" fill="#d0952a"/><rect x="36" y="50" width="6" height="8" rx="2.5" fill="#d0952a"/>
+      <path d="M38 42 v14" stroke="#d0952a" stroke-width="5.5" stroke-linecap="round"/>
+      <circle cx="35" cy="30" r="15" fill="#2f8f83"/>${[0, 1, 2, 3, 4, 5, 6, 7].map(i => { const t = i / 8 * 6.283; return `<circle cx="${(35 + 14 * Math.cos(t)).toFixed(1)}" cy="${(30 + 14 * Math.sin(t)).toFixed(1)}" r="3.4" fill="#3aa596"/>`; }).join("")}
+      <circle cx="36" cy="31" r="10" fill="#f2c230"/>${bEye(34, 28, 2.2)}${bEye(41, 28, 2.2)}
+      <ellipse cx="38" cy="35" rx="5" ry="3.2" fill="#e2445c"/><path d="M35 34 q3 2 6 0" stroke="#fff" stroke-width="1" fill="none"/>
+      <path d="M30 22 q6 -4 12 0" stroke="#e2445c" stroke-width="1.6" fill="none"/>${a ? `<circle cx="20" cy="14" r="1.4" fill="#fff3b0" class="twinkle"/><circle cx="50" cy="12" r="1.1" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    nian: a => `<path d="M10 42 q-8 -4 -6 -12 q4 5 8 4" fill="#2f8f83"/>
+      ${[16, 23, 33, 40].map(x => `<rect x="${x - 3}" y="45" width="6" height="11" rx="2.6" fill="#b8302a"/><path d="M${x - 3} 57 h6" stroke="#f2e6d0" stroke-width="2" stroke-linecap="round"/>`).join("")}
+      <ellipse cx="28" cy="42" rx="17" ry="11" fill="#d8352a"/><path d="M16 38 q4 -3 8 0 M26 36 q4 -3 8 0" stroke="#f2c230" stroke-width="1.2" fill="none"/>
+      <path d="M30 32 q-2 -12 8 -14 q-2 6 2 6 q-2 -8 8 -9 q-4 7 0 9 q4 -5 9 -2 q-6 3 -5 8Z" fill="#2f8f83"/>
+      <circle cx="44" cy="31" r="11" fill="#d8352a"/><path d="M45 20 l2 -10 l3 9Z" fill="#f2e6d0" stroke="#c9b48a" stroke-width=".6"/>
+      ${bEye(46, 28, 2.8)}<path d="M42 23 l7 2" stroke="#3a2f2a" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M43 35 Q50 42 57 33Z" fill="#5a1a1a"/><path d="M45 36 l1.4 3 l1.4 -3 M51 35.5 l1.4 3 l1.4 -3" fill="#fff"/>${a ? `<path d="M14 24 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    tiger: a => `<path d="M11 42 q-9 -6 -6 -16 q2 2 3 1" stroke="#f8f8f4" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M6 31 l3 -1 M5 36 l3 0" stroke="#3a3a40" stroke-width="1.4"/>
+      ${[16, 22, 33, 39].map(x => `<rect x="${x - 2.6}" y="45" width="5.2" height="11" rx="2.4" fill="#f8f8f4" stroke="#e2e2dc" stroke-width=".6"/>`).join("")}
+      <ellipse cx="27" cy="42" rx="16" ry="10" fill="#f8f8f4" stroke="#e2e2dc" stroke-width=".8"/>
+      ${[17, 23, 29, 35].map(x => `<path d="M${x} 33 q2 4 0 7" stroke="#3a3a40" stroke-width="2" fill="none" stroke-linecap="round"/>`).join("")}
+      <circle cx="39" cy="22" r="3.6" fill="#f8f8f4" stroke="#e2e2dc"/><circle cx="51" cy="22" r="3.6" fill="#f8f8f4" stroke="#e2e2dc"/><circle cx="39" cy="22" r="1.6" fill="#f6b6c8"/><circle cx="51" cy="22" r="1.6" fill="#f6b6c8"/>
+      <circle cx="45" cy="31" r="10.5" fill="#f8f8f4" stroke="#e2e2dc" stroke-width=".8"/>
+      <path d="M41 24 h7 M44.5 24 v5 M42 26.5 h5 M41.5 29 h6" stroke="#3a3a40" stroke-width="1.1"/>
+      ${bEye(42, 31, 2.1)}${bEye(50, 31, 2.1)}<ellipse cx="47" cy="35.5" rx="2" ry="1.4" fill="#f29bbd"/><path d="M44 37.5 q3 2 3 0 q0 2 3 0" stroke="#3a3a40" stroke-width=".9" fill="none"/>
+      <path d="M35 33 h-3 M35 36 h-3 M56 33 h3 M56 36 h3" stroke="#3a3a40" stroke-width=".8"/>${a ? `<path d="M26 26 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    koi: a => `<ellipse cx="30" cy="55" rx="24" ry="4" fill="#9fd4ee" opacity=".7"/>
+      <path d="M12 48 L2 40 L4 50 L2 58Z" fill="#f07c2c"/><path d="M20 47 q4 -9 12 -6 q-6 2 -6 6Z" fill="#f07c2c" opacity=".85"/>
+      <ellipse cx="30" cy="49" rx="20" ry="8" fill="#fff4ec"/><path d="M18 45 q6 -4 10 1 q-4 5 -10 3Z M34 44 q6 -2 8 3 q-4 4 -9 1Z" fill="#f07c2c"/><path d="M26 51 q4 -2 7 1 q-3 3 -7 1Z" fill="#e2302a"/>
+      ${bEye(44, 47, 1.8)}<path d="M50 50 q4 1 5 4 M50 51 q3 3 2 6" stroke="#e0a080" stroke-width=".8" fill="none"/>
+      <path d="M8 57 q4 -2 8 0 M44 57 q4 -2 8 0" stroke="#fff" stroke-width="1" fill="none" opacity=".8"/>${a ? `<circle cx="30" cy="38" r="1.4" fill="#fff3b0" class="twinkle"/><circle cx="40" cy="36" r="1" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    kun: a => `<path d="M10 34 L0 26 L3 34 L0 42Z" fill="#3f78c0"/>
+      <path d="M28 30 Q20 6 4 4 Q14 16 16 30Z" fill="#7fb2e6" stroke="#3f78c0" stroke-width="1"/><path d="M8 8 q6 6 9 14 M12 6 q6 7 8 15" stroke="#3f78c0" stroke-width=".8" fill="none"/>
+      <ellipse cx="32" cy="35" rx="24" ry="11" fill="#3f78c0"/><path d="M12 38 Q32 50 54 38 Q32 44 12 38Z" fill="#e4f0fb"/>
+      ${[20, 27, 34, 41].map(x => `<path d="M${x} 41 v3" stroke="#a9c8ea" stroke-width="1"/>`).join("")}
+      <path d="M34 30 Q46 2 60 6 Q50 14 44 30Z" fill="#a9d0f2" stroke="#3f78c0" stroke-width="1"/>
+      ${bEye(48, 32, 2.2)}<path d="M52 38 q3 0 4 -2" stroke="#1f3f6a" stroke-width="1" fill="none"/><path d="M38 24 q-1 -6 2 -9 q0 4 2 6" fill="#9fe0f2" opacity=".8"/>${a ? `<path d="M24 22 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    xiezhi: a => `<path d="M12 40 q-7 -2 -7 -8 q4 3 7 3" fill="#2c5f6b"/>
+      ${[17, 23, 33, 39].map(x => `<rect x="${x - 2}" y="45" width="4" height="11" rx="1.6" fill="#3f7a86"/><rect x="${x - 2.4}" y="54" width="4.8" height="4" rx="1" fill="#1f3f46"/>`).join("")}
+      <ellipse cx="28" cy="43" rx="15" ry="9.5" fill="#3f7a86"/><path d="M18 38 q5 -2 9 1 q-5 3 -9 -1Z M28 44 q5 -2 9 1 q-5 3 -9 -1Z" fill="#5c99a6"/>
+      <path d="M36 41 Q39 31 42 27 L49 29 Q46 36 43 45Z" fill="#3f7a86"/>
+      <path d="M45 16 Q44 4 52 1 Q48 8 49 16Z" fill="#f2e6d0" stroke="#c9b48a" stroke-width=".8"/><path d="M45.5 12 l3 -1 M46 8 l3 -1.5" stroke="#c9b48a" stroke-width=".8"/>
+      <ellipse cx="47" cy="22" rx="8" ry="7" fill="#3f7a86"/><ellipse cx="54" cy="25" rx="4.2" ry="3.2" fill="#5c99a6"/><path d="M41 20 l-5 -3 l2 5Z" fill="#3f7a86"/>
+      ${bEye(48, 20.5, 2.3)}<path d="M51 28 q1 6 -2 9 q-1 -4 -2 -8Z" fill="#e8ecee"/>${a ? `<path d="M56 6 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    crane: a => `<path d="M26 44 v14 M32 44 v14 M23 58 h6 M29 58 h6" stroke="#3a3a40" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M10 34 q-4 6 2 10 q-2 -6 4 -8Z" fill="#2a2a30"/>
+      <ellipse cx="28" cy="37" rx="15" ry="9" fill="#fff" stroke="#e6e6e0" stroke-width=".8"/><path d="M16 34 q8 -6 18 -2 q-6 4 -18 2Z" fill="#f2f2ee" stroke="#e0e0da" stroke-width=".6"/>
+      <path d="M38 33 Q44 22 41 12" stroke="#2a2a30" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <circle cx="42" cy="10" r="5" fill="#fff" stroke="#e6e6e0" stroke-width=".8"/><circle cx="42" cy="6" r="2.2" fill="#e2302a"/>
+      ${bEye(44, 10, 1.6)}<path d="M46 10 l12 2 l-12 1.4Z" fill="#c9b48a"/>${a ? `<path d="M22 22 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    tianma: a => `<path d="M12 36 q-10 2 -9 14 q4 -8 9 -9" fill="#d6e2f6"/>
+      ${[16, 22, 33, 39].map(x => `<rect x="${x - 2}" y="44" width="4" height="12" rx="1.8" fill="#f6f8fc" stroke="#dde4f0" stroke-width=".5"/><rect x="${x - 2.3}" y="54" width="4.6" height="3.6" rx="1" fill="#8a94b0"/>`).join("")}
+      <ellipse cx="28" cy="40" rx="16" ry="9.5" fill="#f6f8fc" stroke="#dde4f0" stroke-width=".8"/>
+      <path d="M26 36 Q16 18 4 16 Q12 24 12 30 Q18 30 26 36Z" fill="#fff" stroke="#9bb8e8" stroke-width="1"/><path d="M10 22 q6 4 10 10 M14 20 q5 5 8 11" stroke="#9bb8e8" stroke-width=".8" fill="none"/>
+      <path d="M37 38 Q40 26 44 20 L51 24 Q46 32 43 43Z" fill="#f6f8fc" stroke="#dde4f0" stroke-width=".6"/>
+      <path d="M41 21 q-5 4 -4 12 q2 -4 4 -4 q-3 5 -1 9 q2 -6 5 -8Z" fill="#9bb8e8"/>
+      <path d="M44 16 l1 -5 l3 4Z" fill="#f6f8fc" stroke="#dde4f0" stroke-width=".6"/><path d="M45 16 Q50 14 57 22 Q58 27 53 27 Q48 26 44 22Z" fill="#f6f8fc" stroke="#dde4f0" stroke-width=".8"/>
+      ${bEye(49, 19, 2.1)}<circle cx="55.5" cy="24" r=".8" fill="#8a94b0"/>${a ? `<path d="M30 14 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`,
+    dragon: a => `<path d="M4 30 Q12 18 20 30 T36 30 T50 26" stroke="#2f9a5a" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <path d="M4 30 Q12 18 20 30 T36 30 T50 26" stroke="#f2c230" stroke-width="2" fill="none" stroke-dasharray="2 4" transform="translate(0 3)"/>
+      ${[[10, 22], [18, 25], [28, 34], [36, 28]].map(([x, y]) => `<path d="M${x} ${y - 4} l2 -5 l2 5Z" fill="#e2445c"/>`).join("")}
+      <path d="M2 30 l-2 -5 M2 30 l-2 5" stroke="#e2445c" stroke-width="2" stroke-linecap="round"/>
+      <path d="M16 34 l-2 6 M30 36 l-1 6" stroke="#2f9a5a" stroke-width="2.4" stroke-linecap="round"/><path d="M12 40 h4 M27 42 h4" stroke="#f2c230" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M48 18 l-3 -8 M47 13 l-3 -1 M53 17 l2 -8 M54 12 l3 -1" stroke="#c9a84a" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="51" cy="24" rx="8" ry="6.5" fill="#2f9a5a"/><ellipse cx="57" cy="27" rx="4.4" ry="3.2" fill="#5fc184"/>${bEye(52, 22, 2.2)}
+      <path d="M57 29 q4 4 2 9 M55 30 q1 5 -3 8" stroke="#f2c230" stroke-width="1" fill="none"/>
+      <circle cx="58" cy="17" r="3" fill="#ffe08a" stroke="#f2c230" class="twinkle"/>${a ? `<path d="M30 14 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`,
     turtle: a => `<ellipse cx="17" cy="53" rx="5" ry="3.4" fill="#7cc47a"/><ellipse cx="41" cy="53" rx="5" ry="3.4" fill="#7cc47a"/><path d="M8 48 l-5 2 l5 2Z" fill="#7cc47a"/>
       <circle cx="50" cy="42" r="7.5" fill="#7cc47a"/>${bEye(52, 40, 2.2)}<path d="M53 45 q2 1 4 -1" stroke="#3a2f2a" stroke-width="1" fill="none"/>
       <path d="M6 51 Q8 26 29 24 Q50 26 51 51Z" fill="#3f8f5a" stroke="#2c6b43" stroke-width="1.5"/>
@@ -1684,7 +1822,7 @@
         <ellipse cx="35" cy="45" rx="3.4" ry="2.6" fill="${c2}" opacity=".75"/><ellipse cx="34" cy="32" rx="1.7" ry="2.1" fill="${c2}" opacity=".75"/>
         <path d="M22 22 l1.3 -3.6 l1.3 3.6 l3.6 1.3 l-3.6 1.3 l-1.3 3.6 l-1.3 -3.6 l-3.6 -1.3Z" fill="#fff3b0" class="twinkle"/></svg>`; }
     const sc = [0, 0, .62, .82, 1][st];
-    return `<svg viewBox="0 0 60 60" overflow="visible">${b.id === "rabbit" ? "" : `<ellipse cx="30" cy="57.5" rx="${(17 * sc).toFixed(1)}" ry="2.3" fill="rgba(0,0,0,.14)"/>`}
+    return `<svg viewBox="0 0 60 60" overflow="visible">${b.id === "rabbit" || b.noShadow ? "" : `<ellipse cx="30" cy="57.5" rx="${(17 * sc).toFixed(1)}" ry="2.3" fill="rgba(0,0,0,.14)"/>`}
       <g transform="translate(30 58) scale(${sc}) translate(-30 -58)">${BEAST_ART[b.id](st === 4, b.tails)}</g></svg>`;
   }
 
@@ -1930,6 +2068,8 @@
       for (let i = 0; i < 16; i++) { const x = x0 + 10 + i * 11.5; s += `<path d="M${x} ${GY} l-4 -${14 + i % 3 * 5} M${x} ${GY} l1 -${18 + i % 4 * 4} M${x} ${GY} l5 -${12 + i % 2 * 6}" stroke="${winter ? "#a9b49a" : "#6aa64f"}" stroke-width="2" stroke-linecap="round"/>`; }
       s += `<ellipse cx="${x0 + w / 2}" cy="150" rx="${w * .55}" ry="22" fill="#fff" opacity=".7"/><ellipse cx="${x0 + w * .35}" cy="128" rx="60" ry="14" fill="#fff" opacity=".55"/>
         <rect x="${x0 + w / 2 - 2}" y="150" width="4" height="28" fill="#7a5530"/><rect x="${x0 + w / 2 - 50}" y="128" width="100" height="26" rx="4" fill="#ecd29b" stroke="#8a6236" stroke-width="1.5"/>${txt(x0 + w / 2, 141, "未開拓的土地", 11, "#4a3216", 700)}${txt(x0 + w / 2, 151, "市集・學堂・藥草園預定地", 7.5)}`;
+      // 仙鶴的小水池（竹林邊）
+      if (m.beasts.find(b => b.id === "crane").st) s += `<ellipse cx="${x0 + w - 24}" cy="${GY - 1}" rx="22" ry="5.5" fill="#8c7a5c"/><ellipse cx="${x0 + w - 24}" cy="${GY - 1.5}" rx="19" ry="4" fill="${winter ? "#d6ecf4" : "#7fc1e3"}"/>`;
     }
     // 麒麟住的竹林、九尾狐的小山坡、神獸殿
     s += bambooSVG(PLOT.bamboo[0], PLOT.bamboo[1], winter);
@@ -2157,26 +2297,46 @@
     if (b.id === "phoenix") return `${head}：${b.line}`;
     return `${head}：${b.line}` + (b.st === 4 ? "。已經長成，住在" + b.where + " ✨" : b.st ? `。牠住在${b.where}` : "。條件開始累積時，蛋就會出現");
   }
+  // 特殊動作：年獸春節被鞭炮嚇跑、天馬尖峰跟公車賽跑、鯤鵬飛過、神龍繞廟
+  function beastMode(b, m){
+    if (b.st < 2) return "";
+    if (b.id === "nian") return m.fest === "春節" || m.fest === "除夕" ? "nianfest" : "";
+    if (b.id === "tianma") return b.st === 4 && m.rush ? "race" : "";
+    if (b.id === "kun") return "kunfly";
+    if (b.id === "dragon") return "orbit";
+    return "";
+  }
   function renderBeasts(m){
     const box = $("beasts"); if (!D) return;
     const { k, TOP } = D, night = m.time === "night", crow = m.hour >= 5 && m.hour < 9;
     const show = m.beasts.filter(b => b.home && b.st && (!b.night || night));
-    const key = show.map(b => `${b.id}${b.st}${b.id === "fox" ? b.tails : ""}`).join() + (crow ? "c" : "") + k + TOP;
+    const key = show.map(b => `${b.id}${b.st}${b.id === "fox" ? b.tails : ""}${beastMode(b, m)}`).join() + (crow ? "c" : "") + k + TOP + m.temple;
     if (key !== beastKey) {
       beastKey = key;
-      box.innerHTML = show.map(b => `<div class="beast${b.st === 4 ? " grown" : ""}" data-b="${b.id}" role="button" aria-label="${b.name}">`
-        + (b.id === "rooster" && b.st === 4 && crow ? `<span class="bsay">喔喔喔～</span>` : "") + `<div class="bflip">${beastSVG(b, b.st)}</div></div>`).join("");
+      box.innerHTML = show.map(b => { const md = beastMode(b, m);
+        return `<div class="beast${b.st === 4 ? " grown" : ""}${b.far && md !== "nianfest" ? " far" : ""}${md ? " " + md : ""}" data-b="${b.id}"${md ? ` data-mode="${md}"` : ""} role="button" aria-label="${b.name}">`
+        + (b.id === "rooster" && b.st === 4 && crow ? `<span class="bsay">喔喔喔～</span>` : "")
+        + (md === "nianfest" ? `<span class="nbang">🧨💥 砰！</span>` : "")
+        + `<div class="bflip">${beastSVG(b, b.st)}</div></div>`; }).join("");
     }
     box.querySelectorAll(".beast").forEach(el => {
-      const b = m.beasts.find(x => x.id === el.dataset.b), sz = b.size * (b.st === 1 ? .8 : 1);
-      if (bPos[b.id] == null || b.st < 2 || b.still) bPos[b.id] = (b.home[0] + b.home[1]) / 2;
+      const b = m.beasts.find(x => x.id === el.dataset.b), md = el.dataset.mode || "";
+      const sz = md === "nianfest" ? 44 : b.size * (b.st === 1 ? .8 : 1);   // 春節跑下山的年獸是真實大小
+      let x = bPos[b.id], foot = b.foot;
+      if (b.st === 1 && b.eggAt) [x, foot] = b.eggAt;
+      else if (md === "nianfest") { x = 162; foot = GY; }
+      else if (md === "race") { x = -40; foot = GY + 16; }
+      else if (md === "kunfly") { x = -sz; foot = TOP > 60 ? -TOP * .5 : 26; }
+      else if (md === "orbit") { x = 2130; foot = GY - 96 - Math.min(TOP * .2, 24); }
+      else if (x == null || b.st < 2 || b.still) x = bPos[b.id] = (b.home[0] + b.home[1]) / 2;
       el.style.transition = "none";
-      Object.assign(el.style, { width: sz * k + "px", height: sz * k + "px", left: (bPos[b.id] - sz / 2) * k + "px", top: (TOP + b.foot - sz * .97) * k + "px" });
+      el.style.setProperty("--dist", (md === "kunfly" ? MW + sz * 2 : MW + 80) * k + "px");
+      Object.assign(el.style, { width: sz * k + "px", height: sz * k + "px", left: (x - sz / 2) * k + "px", top: (TOP + foot - sz * .97) * k + "px" });
     });
   }
   function beastWander(){
     if (!D || !manorNow || reduceMotion || document.hidden || homeOpen) return;
-    const els = [...$("beasts").querySelectorAll(".beast")].filter(el => { const b = manorNow.beasts.find(x => x.id === el.dataset.b); return b.st >= 2 && !b.still; });
+    const els = [...$("beasts").querySelectorAll(".beast")].filter(el => { const b = manorNow.beasts.find(x => x.id === el.dataset.b); return b.st >= 2 && !b.still && !b.fly && !el.dataset.mode; });
     if (!els.length) return;
     const el = els[Math.floor(Math.random() * els.length)], b = manorNow.beasts.find(x => x.id === el.dataset.b);
     if (el.classList.contains("walking")) return;
@@ -2192,6 +2352,12 @@
     el.classList.add("walking"); setTimeout(() => el.classList.remove("walking"), ms);
   }
   setInterval(beastWander, 2600);
+  {   // 神龍繞神獸殿飛：橢圓軌道，往左飛時轉頭，靠前（下方）時稍微變大
+    const st = document.createElement("style"); let kf = "@keyframes orbit{";
+    for (let i = 0; i <= 24; i++) { const t = i / 24 * 2 * Math.PI, sn = Math.sin(t), z = (1 + .12 * sn).toFixed(3);
+      kf += `${(i / 24 * 100).toFixed(2)}%{transform:translate(${(190 * Math.cos(t)).toFixed(1)}%,${(30 * sn).toFixed(1)}%) scale(${sn > .02 ? "-" : ""}${z},${z})}`; }
+    st.textContent = kf + "}"; document.head.appendChild(st);
+  }
   $("beasts").onclick = e => {
     const el = e.target.closest(".beast"); if (!el || !manorNow) return;
     el.classList.remove("jump"); void el.offsetWidth; el.classList.add("jump");
@@ -2206,7 +2372,7 @@
       <div class="bs-top"><b>${b.name}</b><span class="bs-st">${b.id === "phoenix" && !b.st ? "還在長大" : B_STAGE[b.st]}</span></div>
       <div class="bs-line">${esc(b.line)}</div><span class="xpbar"><i style="width:${(b.p * 100).toFixed(1)}%"></i></span>
       <div class="bs-where">🏡 ${esc(b.where)}</div></div></div>`).join("")
-      + `<p class="bs-more">第二批神獸（白澤、狻猊、年獸、白虎、錦鯉、鯤鵬、獬豸、仙鶴、天馬、神龍）準備中…</p>`;
+      + `<p class="bs-more">${m.grown >= 20 ? "🐉 二十隻神獸全員到齊，神龍繞著神獸殿飛！" : "長成 19 隻之後，神龍會降臨神獸殿 🐉"}</p>`;
     openSheet($("bsSheet"));
   }
 
@@ -2701,7 +2867,13 @@
   $("rpBody").addEventListener("pointerleave", hideTip);
   $("report").addEventListener("scroll", hideTip);
 
-  function openReport(){ reportOpen = true; $("report").classList.add("show"); document.body.style.overflow = "hidden"; renderReport(); $("report").scrollTop = 0; }
+  function markSeen(){   // 白澤：這個月打開過月報表
+    const ym = todayStr().slice(0, 7);
+    if (readOnly || state.seen.includes(ym)) return;
+    const before = manorLevels(); state.seen = cleanSeen([...state.seen, ym]); putSettings();
+    const news = manorNews(before, manorLevels()); if (news) setTimeout(() => toast(news, 3000), 600);
+  }
+  function openReport(){ markSeen(); reportOpen = true; $("report").classList.add("show"); document.body.style.overflow = "hidden"; renderReport(); $("report").scrollTop = 0; }
   function closeReport(){ reportOpen = false; hideTip(); $("report").classList.remove("show"); document.body.style.overflow = ""; }
   $("openReport").onclick = openReport;
   $("rpClose").onclick = closeReport;
