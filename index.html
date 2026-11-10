@@ -171,20 +171,51 @@
   .badges button.locked{filter:grayscale(1);opacity:.3}
   .pet-wrap{display:flex;flex-wrap:wrap}
   .pet-row{display:flex;gap:14px;align-items:center;width:100%}
-  /* 鳳凰莊園 */
-  .manor{flex:0 0 calc(100% + 32px);margin:-16px -16px 0;border-radius:var(--radius) var(--radius) 0 0;overflow-x:auto;overflow-y:hidden;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}
+  /* 鳳凰莊園（全螢幕主畫面） */
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+  .stage{position:fixed;inset:0;height:100vh;height:100dvh;overflow:hidden;background:#bfe3f5}
+  .manor{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}
   .manor::-webkit-scrollbar{display:none}
-  .manor-in{position:relative;width:1080px;height:200px}
+  .manor-in{position:relative}
   .manor-in svg{display:block}
   .manor-in [data-plot]{cursor:pointer}
-  .manor .pet-stage{position:absolute;left:138px;bottom:22px;width:92px;height:92px}
-  .manor .xpfloat{left:184px;top:70px}
-  .manor-cap{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted);width:100%;margin-top:-4px}
-  .manor-cap span{background:var(--bg);border-radius:99px;padding:2px 9px}
-  .manor-cap .swipe{margin-left:auto;background:none;padding:0}
-  #petCard .pet-info{width:100%;flex:1 1 100%}
-  #bubble:before{left:24px;top:-6px;border:6px solid transparent;border-top:0;border-bottom-color:var(--bg)}
+  .manor .pet-stage{position:absolute;left:0;top:0;width:120px;height:120px;z-index:2}
+  .pet-stage .pet-flip{width:100%;height:100%;transition:transform .2s}
+  .pet-stage.flip .pet-flip{transform:scaleX(-1)}
+  .pet-stage.walking svg{animation:hop .36s ease-in-out infinite}
+  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  .pet-say{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;background:var(--card);color:var(--ink);
+    border-radius:14px;padding:7px 11px;font-size:13px;line-height:1.45;width:max-content;max-width:210px;box-shadow:0 2px 10px rgba(0,0,0,.15);pointer-events:none;
+    animation:sayin .25s ease}
+  .pet-say:after{content:"";position:absolute;top:100%;left:50%;margin-left:-6px;border:6px solid transparent;border-bottom:0;border-top-color:var(--card)}
+  @keyframes sayin{from{opacity:0;transform:translate(-50%,6px)}}
+  .pet-stage .xpfloat{left:50%;top:-6px}
+  .gate-badges{position:absolute;display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:3px;background:#8a5a2b;border:2px solid #5f3b1a;border-radius:6px;z-index:1}
+  .gate-badges button{padding:0;min-width:0;overflow:hidden;display:grid;place-items:center;background:#e9cf96;border-radius:4px;font-size:var(--bf,15px);line-height:1;aspect-ratio:1}
+  .gate-badges button.locked{filter:grayscale(1);opacity:.35}
+  .topbar{position:absolute;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left));
+    pointer-events:none;max-width:560px;margin:0 auto}
+  .topbar button{pointer-events:auto}
+  .tb-row{display:flex;gap:8px;align-items:flex-start}
+  .pet-chip{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;text-align:left;background:var(--card);border-radius:14px;padding:8px 12px;box-shadow:var(--shadow)}
+  .pc-top{display:flex;align-items:center;gap:6px;font-size:14px;white-space:nowrap;overflow:hidden}
+  .pc-top .lvl{margin:0}
+  .pc-stage{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+  .pet-chip .xpbar{height:6px}
+  .pc-sub{font-size:11px;color:var(--muted)}
+  .topbar .sync{padding:8px 11px;border-radius:14px;font-size:12px}
+  .tb-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .tb-chips button,.tb-chips span{background:var(--card);border-radius:99px;padding:4px 10px;font-size:12px;box-shadow:var(--shadow);color:var(--ink)}
+  .tb-chips .money b{font-variant-numeric:tabular-nums}
+  .bottombar{position:fixed;left:0;right:0;bottom:calc(22px + env(safe-area-inset-bottom));display:flex;justify-content:center;align-items:center;gap:12px;z-index:9;pointer-events:none}
+  .bottombar button{pointer-events:auto}
+  .bottombar .fab{position:static;transform:none}
+  .home-btn{width:52px;height:52px;border-radius:50%;background:var(--card);box-shadow:0 4px 14px rgba(0,0,0,.18);font-size:24px}
+  body.home-open .home-btn{display:none}
+  .home{position:fixed;inset:0;background:var(--bg);z-index:8;overflow:auto;transform:translateY(100%);transition:transform .28s ease;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .home.show{transform:none}
+  .home-note{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:0 2px 12px}
+  .home-note button{color:var(--accent);font-size:12px;flex:none}
   :root{--sav:#b7791f}
   @media (prefers-color-scheme: dark){ :root{--sav:#e7b75a} }
   .sav{color:var(--sav)}
@@ -281,29 +312,35 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>📒 我的記帳本</h1>
-    <button class="sync" id="sync" aria-label="帳號與同步">載入中…</button>
-  </header>
-
-  <section class="card pet-card pet-wrap" id="petCard">
-    <div class="manor" id="manor"><div class="manor-in" id="manorIn">
-      <div id="manorSvg"></div>
-      <div class="pet-stage" id="petStage" role="button" aria-label="摸摸寵物"></div>
-    </div></div>
-    <div class="manor-cap" id="manorCap"></div>
-    <div class="pet-row">
-      <div class="pet-info">
-        <div class="pet-name"><span id="petName">小錢</span><button id="renamePet">✎ 改名</button></div>
-        <div class="pet-sub"><span class="lvl" id="petLvl">Lv 1</span><span id="petStageName">神秘的蛋</span>・<span id="streak">🔥 0 天</span></div>
-        <div class="xpbar"><i id="xpFill" style="width:0"></i></div>
-        <div class="xptext"><span id="xpText">0 / 75 XP</span><span id="nextStage"></span></div>
-      </div>
+<div class="stage" id="stage">
+  <div class="manor" id="manor"><div class="manor-in" id="manorIn">
+    <div id="manorSvg"></div>
+    <div class="gate-badges" id="badges"></div>
+    <div class="pet-stage" id="petStage" role="button" aria-label="摸摸寵物">
+      <div class="pet-say" id="bubble" hidden></div>
+      <div class="pet-flip" id="petSvg"></div>
     </div>
-    <div class="bubble" id="bubble" style="width:100%">…</div>
-    <div class="badges" id="badges"></div>
-  </section>
+  </div></div>
+  <div class="topbar">
+    <div class="tb-row">
+      <button class="pet-chip" id="petChip" aria-label="找小錢">
+        <span class="pc-top"><b id="petName">小錢</b><span class="lvl" id="petLvl">Lv 1</span><span class="pc-stage" id="petStageName">神秘的蛋</span></span>
+        <span class="xpbar"><i id="xpFill" style="width:0"></i></span>
+        <span class="pc-sub"><span id="xpText">0 / 75 XP</span>・<span id="streak">🔥 0 天</span><span id="nextStage" hidden></span></span>
+      </button>
+      <button class="sync" id="sync" aria-label="帳號與同步">載入中…</button>
+    </div>
+    <div class="tb-chips" id="manorCap"></div>
+  </div>
+</div>
+
+<div class="home" id="home" role="dialog" aria-modal="true" aria-label="小錢的家">
+<div class="wrap">
+  <div class="rp-head home-head">
+    <h2 id="homeTitle">🏠 小錢的家</h2>
+    <button class="x" id="homeClose" aria-label="回莊園">×</button>
+  </div>
+  <div class="home-note"><span id="homeNote"></span><button id="renamePet">✎ 幫小錢改名</button></div>
 
   <div class="month">
     <button id="prev" aria-label="上個月">‹</button>
@@ -348,8 +385,12 @@
     <button id="importBtn">匯入備份</button>
   </div>
 </div>
+</div>
 
-<button class="fab" id="addBtn">＋ 記一筆</button>
+<div class="bottombar" id="bottombar">
+  <button class="home-btn" id="homeBtn" aria-label="小錢的家">🏠</button>
+  <button class="fab" id="addBtn">＋ 記一筆</button>
+</div>
 
 <div class="mask" id="mask"></div>
 
@@ -953,18 +994,28 @@
     ["🔥", "浴火重生成為鳳凰", g => g.lvl >= 21]
   ];
 
-  let lastBubbleMood = null, lastBubbleStage = null;
+  let lastBubbleMood = null, lastBubbleStage = null, lastPetSVG = "";
   function sayRandom(g){
     const s = stageOf(g.lvl);
     let pool = s === 0 ? LINES.egg[g.mood] : LINES.pet[g.mood === "new" ? "happy" : g.mood];
     if (STAGES[s].key === "phoenix" && (g.mood === "happy" || g.mood === "normal")) pool = pool.concat(LINES.pet.phoenix);
-    $("bubble").textContent = pool[Math.floor(Math.random() * pool.length)];
+    say(pool[Math.floor(Math.random() * pool.length)]);
+  }
+  let sayTimer = null;
+  function say(text, ms = 4200){
+    const b = $("bubble"); b.textContent = text; b.hidden = false;
+    b.style.animation = "none"; void b.offsetWidth; b.style.animation = "";
+    b.style.marginLeft = "0px";   // 泡泡不要超出螢幕
+    const r = b.getBoundingClientRect(), W = innerWidth;
+    b.style.marginLeft = (r.right > W - 8 ? W - 8 - r.right : r.left < 8 ? 8 - r.left : 0) + "px";
+    clearTimeout(sayTimer); sayTimer = setTimeout(() => b.hidden = true, ms);
   }
   function renderPet(){
     const g = computeGame();
     const s = stageOf(g.lvl);
     const st = $("petStage");
-    st.innerHTML = petSVG(s, g.mood);
+    const ps = petSVG(s, g.mood);
+    if (ps !== lastPetSVG) { $("petSvg").innerHTML = ps; lastPetSVG = ps; }
     st.classList.toggle("egg", s === 0);
     st.classList.toggle("sad", g.mood === "sad");
     $("petName").textContent = state.petName;
@@ -975,6 +1026,7 @@
     $("xpText").textContent = `${g.into} / ${g.need} XP`;
     const nxt = STAGES[s + 1];
     $("nextStage").textContent = nxt ? `Lv ${nxt.min} 進化` : "已達最終型態";
+    $("petChip").title = $("nextStage").textContent;
     if (g.mood !== lastBubbleMood || s !== lastBubbleStage) { sayRandom(g); lastBubbleMood = g.mood; lastBubbleStage = s; }
     renderManor(g);
     $("badges").innerHTML = BADGES.map(([em, name, ok], i) =>
@@ -991,12 +1043,13 @@
     st.classList.remove("jump"); void st.offsetWidth; st.classList.add("jump");
     setTimeout(() => st.classList.remove("jump"), 650);
     sayRandom(computeGame());
+    petPause(5000);
   };
   function floatXP(text){
     const f = document.createElement("div");
     f.className = "xpfloat"; f.textContent = text;
-    $("manorIn").appendChild(f);
-    if ($("manor").scrollLeft > 60) $("manor").scrollTo({ left: 0, behavior: "smooth" });
+    $("petStage").appendChild(f);
+    scrollToPet();
     setTimeout(() => f.remove(), 1400);
     const st = $("petStage");
     st.classList.remove("jump"); void st.offsetWidth; st.classList.add("jump");
@@ -1060,7 +1113,10 @@
       time: h >= 6 && h < 17 ? "day" : h >= 17 && h < 19 ? "dusk" : "night"
     };
   }
-  const MW = 1080, MH = 200, GY = 178;
+  const MW = 1080, MH = 200, GY = 178, BOT = 72;
+  // 依螢幕高度決定放大倍率；多出來的高度補成上方天空、下方草地
+  const dims = () => { const h = $("stage").clientHeight || innerHeight; const k = Math.max(1.15, Math.min(1.8, h / 620));
+    const VH = Math.ceil(h / k); return { k, VH, TOP: Math.max(0, VH - MH - BOT) }; };
   const PLOT = { gate: [0, 130], house: [130, 240], field: [370, 240], pond: [610, 190], granary: [800, 180], frontier: [980, 100] };
   const SEASON = {
     spring: { ground: "#a8d67c", hill: "#8cc56b", far: "#c3e2ae", tree: "#7cbf5a", road: "#ead6a8" },
@@ -1083,19 +1139,29 @@
   }
   function snowCap(points){ return `<polyline points="${points}" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`; }
 
-  function sceneSVG(m){
+  function sceneSVG(m, D){
     const P = SEASON[m.season], night = m.time === "night", winter = m.season === "winter";
     const sky = m.over ? { day: "#c3cad0", dusk: "#d9bba4", night: "#1a2236" }[m.time] : { day: "#bfe3f5", dusk: "#f6c99c", night: "#1f2b4d" }[m.time];
     let s = "", lights = "";
     // 天空、遠山、地面、道路
-    s += `<rect width="${MW}" height="${MH}" fill="${sky}"/>`;
+    const { k, VH, TOP } = D;
+    let outer = `<rect width="${MW}" height="${VH}" fill="${sky}"/>`, outerLights = "";
+    // 上方多出來的天空：遠方的山水層次
+    if (TOP > 40) {
+      const mt = (base, amp, seed, fill, op) => { let d = `M0 ${base}`;
+        for (let x = 0; x <= MW; x += 45) d += ` L${x} ${(base - amp * (.5 + .5 * Math.sin(x / 97 + seed) * Math.cos(x / 41 + seed * 2))).toFixed(1)}`;
+        return `<path d="${d} L${MW} ${TOP + 140} L0 ${TOP + 140}Z" fill="${fill}" opacity="${op}"/>`; };
+      outer += mt(TOP + 70, TOP * .62, 1.3, P.hill, .28)
+        + mt(TOP + 80, TOP * .38, 4.1, P.hill, .45) + mt(TOP + 90, TOP * .2, 7.7, P.far, .9);
+    }
     if (night) {
-      for (let i = 0; i < 40; i++) { const x = (i * 97 + 31) % MW, y = (i * 53 + 7) % 80 + 6; lights += `<circle cx="${x}" cy="${y}" r="${i % 3 ? .9 : 1.4}" fill="#fff" opacity=".85"/>`; }
+      const sh = TOP + 86;
+      for (let i = 0; i < 40 + TOP / 4; i++) { const x = (i * 97 + 31) % MW, y = (i * 53 + 7) % sh + 6; outerLights += `<circle cx="${x}" cy="${y}" r="${i % 3 ? .9 : 1.4}" fill="#fff" opacity=".85"/>`; }
       lights += `<circle cx="66" cy="40" r="15" fill="#f6f1cf"/><circle cx="73" cy="35" r="13" fill="${sky}"/>`;
     } else if (!m.over) s += `<circle cx="66" cy="${m.time === "dusk" ? 64 : 40}" r="17" fill="${m.time === "dusk" ? "#ff9f4a" : "#ffd75e"}"/>`;
     const cloud = (x, y, k, c) => `<g fill="${c}"><ellipse cx="${x}" cy="${y}" rx="${22 * k}" ry="${9 * k}"/><ellipse cx="${x + 14 * k}" cy="${y - 6 * k}" rx="${14 * k}" ry="${9 * k}"/><ellipse cx="${x - 12 * k}" cy="${y - 3 * k}" rx="${11 * k}" ry="${7 * k}"/></g>`;
-    if (m.over) [[90, 34, 1.2], [300, 40, 1.5], [520, 30, 1.3], [760, 38, 1.4], [980, 30, 1.2]].forEach(([x, y, k]) => s += cloud(x, y, k, night ? "#2c3550" : "#8f99a1"));
-    else if (!night) [[150, 30, 1], [560, 44, .9], [880, 26, 1.1]].forEach(([x, y, k]) => s += cloud(x, y, k, "#ffffff"));
+    if (m.over) [[90, 34, 1.2], [300, 40, 1.5], [520, 30, 1.3], [760, 38, 1.4], [980, 30, 1.2], [200, 34 - TOP * .6, 1.6], [640, 30 - TOP * .45, 1.4], [900, 40 - TOP * .7, 1.5]].forEach(([x, y, c]) => s += cloud(x, y, c, night ? "#2c3550" : "#8f99a1"));
+    else if (!night) [[150, 30, 1], [560, 44, .9], [880, 26, 1.1], [420, 30 - TOP * .55, 1.3], [760, 40 - TOP * .8, 1], [60, 40 - TOP * .4, .9]].forEach(([x, y, c]) => s += cloud(x, y, c, "#ffffff"));
     s += `<path d="M0 104 L60 82 L130 98 L210 70 L300 96 L380 76 L470 100 L560 72 L650 94 L740 68 L830 96 L920 78 L1010 98 L1080 84 L1080 130 L0 130Z" fill="${P.far}"/>`;
     s += `<path d="M0 120 Q120 100 240 116 T480 112 T720 118 T960 108 T1200 116 L1080 140 L0 140Z" fill="${P.hill}"/>`;
     s += `<rect y="124" width="${MW}" height="${MH - 124}" fill="${P.ground}"/>`;
@@ -1230,9 +1296,12 @@
     }
 
     const shade = night ? `<rect width="${MW}" height="${MH}" fill="#0b1633" opacity=".42"/>` : m.time === "dusk" ? `<rect width="${MW}" height="${MH}" fill="#c0603a" opacity=".1"/>` : "";
-    const hits = Object.entries(PLOT).map(([k, [x, w]]) => `<rect data-plot="${k}" x="${x}" y="80" width="${w}" height="${MH - 80}" fill="transparent"/>`).join("")
+    const hits = Object.entries(PLOT).map(([key, [x, w]]) => `<rect data-plot="${key}" x="${x}" y="80" width="${w}" height="${MH - 80}" fill="transparent"/>`).join("")
       + (m.lanterns ? `<rect data-plot="lantern" x="130" y="0" width="${Math.min(m.lanterns, 11) * 80 + 20}" height="44" fill="transparent"/>` : "");
-    return `<svg width="${MW}" height="${MH}" viewBox="0 0 ${MW} ${MH}" role="img" aria-label="鳳凰莊園">${s}${shade}${lights}${hits}</svg>`;
+    const shadeAll = shade.replace(`height="${MH}"`, `height="${VH}"`);
+    return `<svg width="${Math.round(MW * k)}" height="${Math.round(VH * k)}" viewBox="0 0 ${MW} ${VH}" role="img" aria-label="鳳凰莊園">${outer}
+      <g transform="translate(0 ${TOP})">${s}</g><rect y="${TOP + MH}" width="${MW}" height="${VH - TOP - MH + 1}" fill="${P.ground}"/>
+      ${shadeAll}${outerLights}<g transform="translate(0 ${TOP})">${lights}${hits}</g></svg>`;
   }
 
   const HOUSE_NAMES = ["鳥巢", "竹屋", "三合院", "掛金匾的三合院"];
@@ -1246,15 +1315,102 @@
     if (k === "lantern") return `🏮 已掛 ${m.lanterns} 盞燈籠：每守住一個月的預算，就多掛一盞`;
     return "🎋 更多建築（市集、學堂、藥草園、鳳凰神殿）還在開發中，敬請期待！";
   }
-  let manorKey = "", manorNow = null;
+  let manorKey = "", manorNow = null, D = null;
   function renderManor(g){
     const m = manorState(g); manorNow = m;
-    const svg = sceneSVG(m);
-    if (svg !== manorKey) { $("manorSvg").innerHTML = svg; manorKey = svg; }
-    $("manorCap").innerHTML = `<span>🏮 ${m.lanterns} 盞</span><span class="sav">🌾 ${m.saved ? "已存 " + fmt(m.saved) : "糧倉未蓋"}</span>`
-      + (m.over ? `<span>🌧️ 本月超支</span>` : "") + `<span class="swipe">滑動逛莊園 →</span>`;
+    D = dims();
+    const svg = sceneSVG(m, D);
+    if (svg !== manorKey) {
+      $("manorSvg").innerHTML = svg; manorKey = svg;
+      const { k, VH, TOP } = D;
+      Object.assign($("manorIn").style, { width: Math.round(MW * k) + "px", height: Math.round(VH * k) + "px" });
+      // 徽章掛在大門兩根柱子中間
+      Object.assign($("badges").style, { left: 40 * k + "px", top: (TOP + 127) * k + "px", width: 50 * k + "px" });
+      $("badges").style.setProperty("--bf", 10 * k + "px");
+      placePet(0);
+    }
+    // 主畫面只看「這個月」的錢，不跟著家裡切換的月份
+    const ym = todayStr().slice(0, 7);
+    let exp = 0, inc = 0, out = 0;
+    state.entries.forEach(e => { if (!e.date || !e.date.startsWith(ym)) return;
+      if (e.type === "income") inc += e.amount; else { out += e.amount; if (e.type === "expense" && !e.oneoff) exp += e.amount; } });
+    const money = state.budget > 0
+      ? (exp <= state.budget ? `💰 本月預算還剩 <b>${fmt(state.budget - exp)}</b>` : `⚠️ 本月超支 <b>${fmt(exp - state.budget)}</b>`)
+      : `💰 本月結餘 <b>${inc - out < 0 ? "-" : ""}${fmt(Math.abs(inc - out))}</b>`;
+    $("manorCap").innerHTML = `<button class="money" data-go="home">${money}</button><span class="sav">🌾 ${m.saved ? fmt(m.saved) : "糧倉未蓋"}</span><span>🏮 ${m.lanterns}</span>`;
   }
-  $("manorSvg").onclick = e => { const p = e.target.closest("[data-plot]"); if (p && manorNow) toast(plotInfo(p.dataset.plot, manorNow), 3200); };
+  $("manorCap").onclick = e => { if (e.target.closest("[data-go=home]")) openHome(); };
+  $("manorSvg").onclick = e => {
+    const p = e.target.closest("[data-plot]"); if (!p || !manorNow) return;
+    if (p.dataset.plot === "house") { openHome(); return; }
+    toast(plotInfo(p.dataset.plot, manorNow), 3200);
+  };
+  let rsT = null;
+  addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => renderManor(computeGame()), 150); });
+
+  // ---------- 小錢在莊園裡晃晃 ----------
+  const PW = 66;                         // 小錢在場景裡的大小（場景單位）
+  const pet = { x: 184, dir: 1, timer: null, until: 0 };
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const isEgg = () => stageOf(computeGame().lvl) === 0;
+  const isPhoenix = () => STAGES[stageOf(computeGame().lvl)].key === "phoenix";
+  function placePet(ms){
+    if (!D) return;
+    const st = $("petStage"), { k, TOP } = D;
+    const egg = isEgg(), feet = egg ? 174 : isPhoenix() ? 168 : 188;   // 蛋待在鳥巢裡；鳳凰飄在半空
+    if (egg) pet.x = 184;
+    st.style.transition = ms ? `left ${ms}ms linear, top .4s ease` : "none";
+    Object.assign(st.style, { width: PW * k + "px", height: PW * k + "px", left: (pet.x - PW / 2) * k + "px", top: (TOP + feet - PW * .93) * k + "px" });
+    st.classList.toggle("flip", pet.dir < 0);
+    st.classList.toggle("walking", ms > 0 && !isPhoenix());
+  }
+  function scrollToPet(){
+    if (!D) return; const mn = $("manor");
+    const want = pet.x * D.k - mn.clientWidth / 2;
+    if (Math.abs(mn.scrollLeft - want) > mn.clientWidth * .3) mn.scrollTo({ left: Math.max(0, want), behavior: "smooth" });
+  }
+  function petPause(ms){
+    pet.until = Date.now() + ms;
+    const st = $("petStage"), r = st.getBoundingClientRect(), mr = $("manorIn").getBoundingClientRect();
+    if (D && st.style.transition.includes("left")) { pet.x = (r.left - mr.left + r.width / 2) / D.k; placePet(0); }   // 停在原地
+    clearTimeout(pet.timer); pet.timer = setTimeout(wander, ms);
+  }
+  function wander(){
+    clearTimeout(pet.timer);
+    const later = ms => pet.timer = setTimeout(wander, ms);
+    if (!D || reduceMotion || document.hidden || homeOpen || isEgg()) return later(4000);
+    if (Date.now() < pet.until) return later(pet.until - Date.now());
+    const mn = $("manor"), v0 = mn.scrollLeft / D.k, v1 = v0 + mn.clientWidth / D.k;
+    let lo = Math.max(150, v0 + 50), hi = Math.min(MW - 60, v1 - 50);
+    if (hi <= lo) { lo = Math.max(150, Math.min(pet.x, MW - 60)); hi = lo; }
+    // 不在畫面裡就慢慢走回畫面；在畫面裡就隨便逛
+    const tx = pet.x < lo || pet.x > hi ? lo + Math.random() * (hi - lo) : Math.max(lo, Math.min(hi, pet.x + (Math.random() - .5) * 260));
+    const dist = Math.abs(tx - pet.x);
+    if (dist < 18) { if (Math.random() < .35) sayRandom(computeGame()); return later(2500 + Math.random() * 4000); }
+    const ms = dist / (isPhoenix() ? 70 : 32) * 1000;
+    pet.dir = tx > pet.x ? 1 : -1; pet.x = tx; placePet(ms);
+    pet.timer = setTimeout(() => {
+      $("petStage").classList.remove("walking");
+      if (Math.random() < .3) sayRandom(computeGame());
+      later(2000 + Math.random() * 5000);
+    }, ms);
+  }
+  $("petChip").onclick = () => { scrollToPet(); petPause(4000); setTimeout(() => sayRandom(computeGame()), 300); };
+
+  // ---------- 小錢的家 ----------
+  let homeOpen = false;
+  function openHome(){
+    homeOpen = true; document.body.classList.add("home-open");
+    $("homeTitle").textContent = `🏠 ${state.petName}的家`;
+    $("renamePet").textContent = `✎ 幫${state.petName}改名`;
+    if (manorNow) $("homeNote").textContent = plotInfo("house", manorNow).replace(/^🏠 /, "");
+    $("home").classList.add("show"); $("home").scrollTop = 0;
+  }
+  function closeHome(){ homeOpen = false; document.body.classList.remove("home-open"); $("home").classList.remove("show"); }
+  $("homeBtn").onclick = openHome;
+  $("homeClose").onclick = closeHome;
+  addEventListener("keydown", e => { if (e.key === "Escape" && homeOpen && !openSheetEl && !reportOpen) closeHome(); }, true);
+
   const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary]; };
   function manorNews(a, b){
     if (!a[2] && b[2]) return "🏦 莊園蓋好糧倉了！往右滑去看看 🎉";
@@ -1984,6 +2140,7 @@
 
   render();
   afterLoad();
+  setTimeout(() => { sayRandom(computeGame()); wander(); }, 1200);
 
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
