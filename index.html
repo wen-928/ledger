@@ -378,8 +378,9 @@
 <!-- import sheet -->
 <div class="sheet" id="imSheet" role="dialog" aria-modal="true">
   <h3><span>匯入備份</span><button data-close aria-label="關閉">×</button></h3>
-  <p style="font-size:13px;color:var(--muted);margin:0 0 10px">把「備份全部資料」複製的文字貼在下面。同一筆紀錄不會重複匯入。</p>
-  <textarea class="csv" id="imText" placeholder="在這裡貼上備份…"></textarea>
+  <p style="font-size:13px;color:var(--muted);margin:0 0 10px">選擇備份檔案（.json 或 .csv），或把備份文字貼在下面。同一筆紀錄不會重複匯入。</p>
+  <label class="btn ghost" style="display:block;text-align:center;margin-bottom:10px;cursor:pointer">📂 選擇備份檔案<input type="file" id="imFile" accept=".json,.csv,.txt,application/json,text/csv,text/plain" hidden></label>
+  <textarea class="csv" id="imText" placeholder="或在這裡貼上備份文字…"></textarea>
   <div class="err" id="imErr" style="margin:6px 0 0"></div>
   <div class="actions" style="margin-top:12px"><button class="btn primary" id="doImport">匯入</button></div>
 </div>
@@ -1393,21 +1394,60 @@
   const validEntry = e => e && typeof e.id === "string" && /^[\w-]{1,64}$/.test(e.id)
     && (e.type === "expense" || e.type === "income") && typeof e.amount === "number" && e.amount > 0 && e.amount <= 1e9
     && typeof e.cat === "string" && e.cat.length <= 10 && typeof e.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.date);
-  $("doImport").onclick = async () => {
-    let data;
-    try { data = JSON.parse($("imText").value.trim()); } catch { $("imErr").textContent = "看不懂這段文字，請確認是完整複製的備份"; return; }
-    const list = Array.isArray(data) ? data : data && Array.isArray(data.entries) ? data.entries : null;
-    if (!list) { $("imErr").textContent = "這段文字裡找不到記帳紀錄"; return; }
+  function hashId(str){ let h = 5381; for (let i = 0; i < str.length; i++) h = (h * 33 + str.charCodeAt(i)) >>> 0; return "c" + h.toString(36); }
+  function parseCSV(text){
+    const rows = text.replace(/\r/g, "").split("\n").filter(l => l.trim());
+    if (!rows.length || !/日期/.test(rows[0])) return null;
+    const splitRow = l => { const out = []; let cur = "", q = false;
+      for (let i = 0; i < l.length; i++) { const c = l[i];
+        if (q) { if (c === '"' && l[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
+        else if (c === '"') q = true; else if (c === ",") { out.push(cur); cur = ""; } else cur += c; }
+      out.push(cur); return out; };
+    const seen = {};
+    return rows.slice(1).map(l => { const [date, type, cat, amount, note, one] = splitRow(l);
+      const key = [date, type, cat, amount, note].join("|"); seen[key] = (seen[key] || 0) + 1;
+      return { id: hashId(key + "#" + seen[key]), date: (date || "").trim(), type: type === "收入" ? "income" : "expense",
+        cat: (cat || "其他").trim(), amount: Number(amount), note: note || "", oneoff: one === "是", createdAt: Date.parse(date + "T12:00:00") || Date.now() }; });
+  }
+  function parseBackup(raw){
+    const text = String(raw || "").replace(/^﻿/, "").trim();
+    if (!text) return { err: "還沒有選檔案或貼上文字" };
+    const tryJSON = t => { try { return JSON.parse(t); } catch { return undefined; } };
+    let data = tryJSON(text);
+    if (data === undefined && text.includes("{")) data = tryJSON(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    if (data !== undefined) {
+      const list = Array.isArray(data) ? data : data && Array.isArray(data.entries) ? data.entries : null;
+      return list ? { list, data: Array.isArray(data) ? {} : data } : { err: "這份資料裡找不到記帳紀錄" };
+    }
+    const csv = parseCSV(text);
+    if (csv) return { list: csv, data: {} };
+    if (text.includes('"entries"')) return { err: "備份文字沒有複製完整（只複製到一部分）。請改用「選擇備份檔案」，或重新複製一次" };
+    return { err: "看不懂這段文字。請用「選擇備份檔案」，或確認貼上的是「備份全部資料」的內容" };
+  }
+  async function importBackup(raw){
+    $("imErr").textContent = "";
+    const r = parseBackup(raw);
+    if (r.err) { $("imErr").textContent = r.err; return; }
+    const { list, data } = r;
     const fresh = list.filter(validEntry).map(e => clean({ ...e, note: String(e.note || "").slice(0, 60) })).filter(e => !state.entries.has(e.id));
+    const skipped = list.length - list.filter(validEntry).length;
     if (data.petName && state.petName === "小錢") state.petName = String(data.petName).slice(0, 10);
     if (data.budget > 0 && !state.budget) state.budget = Math.round(data.budget);
     fresh.forEach(e => state.entries.set(e.id, e));
     closeSheet(); render(); local.save();
+    const msg = `已匯入 ${fresh.length} 筆紀錄` + (list.length - skipped - fresh.length > 0 ? `（${list.length - skipped - fresh.length} 筆原本就有）` : "") + (skipped ? `，${skipped} 筆格式不對略過` : "");
     if (cloud) {
       toast(`匯入中…（${fresh.length} 筆）`);
-      try { await cloud.bulkSet(fresh); await cloud.settingsDoc.set({ budget: state.budget, petName: state.petName }); toast(`已匯入 ${fresh.length} 筆紀錄`); }
+      try { await cloud.bulkSet(fresh); await cloud.settingsDoc.set({ budget: state.budget, petName: state.petName }); toast(msg); }
       catch (err) { handleWriteErr(err); }
-    } else { local.save(); fresh.forEach(e => queueIfOffline({ e })); toast(`已匯入 ${fresh.length} 筆紀錄`); }
+    } else { fresh.forEach(e => queueIfOffline({ e })); toast(msg); }
+  }
+  $("doImport").onclick = () => importBackup($("imText").value);
+  $("imFile").onchange = async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    if (f.size > 5e6) { $("imErr").textContent = "檔案太大了，確定是記帳本的備份嗎？"; return; }
+    try { importBackup(await f.text()); } catch { $("imErr").textContent = "讀不到這個檔案，請再試一次"; }
   };
 
   // toast
