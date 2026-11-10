@@ -253,6 +253,11 @@
   .oneoff b{display:block;font-size:14px;font-weight:500}
   .oneoff small{display:block;font-size:12px;color:var(--muted);line-height:1.5;margin-top:2px}
   .hint{font-size:12px;color:var(--accent);margin:-4px 0 10px}
+  .rec-line{display:flex;width:100%;text-align:left;align-items:center;gap:4px}
+  .rec-line .go{margin-left:auto;color:var(--muted)}
+  .sheet .lead{font-size:13px;color:var(--muted);margin:-4px 0 12px;line-height:1.6}
+  .field select{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;outline:none;font-size:15px;color:var(--ink);width:100%;-webkit-appearance:none;appearance:none}
+  .tag.paused{background:var(--bg);color:var(--muted)}
   textarea.csv{width:100%;height:180px;font-family:ui-monospace,monospace;font-size:12px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--ink)}
 </style>
 </head>
@@ -292,6 +297,7 @@
       <div class="pill"><div class="k">收入</div><div class="v inc" id="sumInc">$0</div></div>
     </div>
     <div class="one-line" id="oneLine" hidden>💻 一次性支出另計 <b id="oneSum">$0</b><span>（不算進每月開銷和預算）</span></div>
+    <button class="one-line rec-line" id="recLine"></button>
     <div class="budget">
       <div class="top"><span id="budgetText">尚未設定每月預算</span><button id="setBudget">設定預算</button></div>
       <div class="bar" id="budgetBar"><i style="width:0"></i></div>
@@ -343,11 +349,43 @@
     <span class="sw"></span>
     <span><b>一次性大額支出</b><small>例如換電腦、買家電。會另外統計，不算進每月開銷、預算和報表比較。</small></span>
   </label>
+  <div class="hint" id="recHint" hidden></div>
   <div class="hint" id="oneHint" hidden>💡 這筆金額比較大，要標記成一次性支出嗎？</div>
   <div class="err" id="err"></div>
   <div class="actions">
     <button class="btn danger" id="delBtn" hidden>刪除</button>
     <button class="btn primary" id="saveBtn">儲存</button>
+  </div>
+</div>
+
+<!-- recurring list sheet -->
+<div class="sheet" id="rlSheet" role="dialog" aria-modal="true">
+  <h3><span>🔁 固定支出</span><button data-close aria-label="關閉">×</button></h3>
+  <p class="lead">每個月到了設定的日子，打開 App 就會自動記一筆（算進開銷和預算）。哪個月金額不一樣，直接點那筆明細修改就好。</p>
+  <div id="recList"></div>
+  <div class="actions"><button class="btn primary" id="recAdd">＋ 新增固定支出</button></div>
+</div>
+
+<!-- recurring edit sheet -->
+<div class="sheet" id="reSheet" role="dialog" aria-modal="true">
+  <h3><span id="reTitle">新增固定支出</span><button id="reBack" aria-label="返回">×</button></h3>
+  <div class="amount-in"><span>NT$</span><input id="reAmt" inputmode="decimal" placeholder="每月金額" autocomplete="off"></div>
+  <div class="field"><label>名稱<input id="reName" maxlength="30" placeholder="例如：房租、Netflix、電話費"></label></div>
+  <div class="cats" id="reCats"></div>
+  <div class="field"><label>每月幾號扣款<select id="reDay"></select></label></div>
+  <p class="lead" id="reDayNote" style="margin-top:-6px">如果那個月沒有這一天，會記在月底。</p>
+  <label class="oneoff" id="reNowRow" hidden>
+    <input type="checkbox" id="reNow"><span class="sw"></span>
+    <span><b>這個月也補記一筆</b><small id="reNowText">這個月的扣款日已經過了。如果你還沒手動記，打開這個就會幫你補上。</small></span>
+  </label>
+  <label class="oneoff" id="rePauseRow" hidden>
+    <input type="checkbox" id="rePause"><span class="sw"></span>
+    <span><b>暫停</b><small>暫停期間不會自動記帳；恢復後從下一次扣款日開始，不會補記暫停的月份。</small></span>
+  </label>
+  <div class="err" id="reErr"></div>
+  <div class="actions">
+    <button class="btn danger" id="reDel" hidden>刪除</button>
+    <button class="btn primary" id="reSave">儲存</button>
   </div>
 </div>
 
@@ -460,6 +498,7 @@
     entries: new Map(),   // id -> entry
     budget: 0,
     petName: "小錢",
+    recurring: [],        // 固定支出規則
     ym: (() => { const d = new Date(); return [d.getFullYear(), d.getMonth()+1]; })(),
     catTab: "expense",
     q: ""
@@ -469,13 +508,22 @@
   const LS_KEY = "ledger.v1";
   const local = {
     load(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; } },
-    save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ entries:[...state.entries.values()], budget: state.budget, petName: state.petName })); } catch {} }
+    save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ entries:[...state.entries.values()], budget: state.budget, petName: state.petName, recurring: state.recurring })); } catch {} }
   };
   let cloud = null; // { entriesCol, settingsDoc }
   let readOnly = false;
 
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  const clean = e => ({ id:e.id, type:e.type, amount:e.amount, cat:e.cat, date:e.date, note:e.note||"", oneoff:!!e.oneoff, createdAt:e.createdAt||Date.now() });
+  const clean = e => { const o = { id:e.id, type:e.type, amount:e.amount, cat:e.cat, date:e.date, note:e.note||"", oneoff:!!e.oneoff, createdAt:e.createdAt||Date.now() };
+    if (typeof e.rec === "string" && e.rec) o.rec = e.rec;   // 由哪一項固定支出自動產生
+    return o; };
+  const validRule = r => r && typeof r.id === "string" && /^\w{1,40}$/.test(r.id) && typeof r.amount === "number" && r.amount > 0 && r.amount <= 1e9
+    && typeof r.cat === "string" && r.cat.length <= 10 && Number.isInteger(r.day) && r.day >= 1 && r.day <= 31
+    && typeof r.start === "string" && /^\d{4}-\d{2}$/.test(r.start);
+  const cleanRule = r => { const o = { id: r.id, name: String(r.name || "").slice(0, 30), cat: r.cat, amount: r.amount, day: r.day, start: r.start, paused: !!r.paused };
+    if (typeof r.done === "string" && /^\d{4}-\d{2}$/.test(r.done)) o.done = r.done;
+    return o; };
+  const settingsData = () => ({ budget: state.budget, petName: state.petName, recurring: state.recurring.map(cleanRule) });
 
   async function putEntry(e){
     state.entries.set(e.id, e); render();
@@ -496,7 +544,7 @@
     render();
     local.save();
     if (cloud) {
-      try { await cloud.settingsDoc.set({ budget: state.budget, petName: state.petName }); } catch (err) { handleWriteErr(err); }
+      try { await cloud.settingsDoc.set(settingsData()); } catch (err) { handleWriteErr(err); }
     }
   }
   const putBudget = v => { state.budget = v; return putSettings(); };
@@ -516,6 +564,7 @@
     (saved.entries || []).forEach(e => state.entries.set(e.id, e));
     state.budget = saved.budget || 0;
     if (saved.petName) state.petName = saved.petName;
+    if (Array.isArray(saved.recurring)) state.recurring = saved.recurring.filter(validRule).map(cleanRule);
   }
 
   // ---------- Firebase 雲端同步 ----------
@@ -523,7 +572,7 @@
   const UID_KEY = "ledger.uid", OUTBOX_KEY = "ledger.outbox";
   const cfg = window.LEDGER_FIREBASE_CONFIG;
   const hasCfg = !!(cfg && cfg.apiKey && cfg.projectId);
-  let fb = null, curUser = null, unsubs = [];
+  let fb = null, curUser = null, unsubs = [], cloudReady = false;
   const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
   const outbox = {
@@ -560,8 +609,8 @@
     const prevUid = lsGet(UID_KEY);
     const canMigrate = !prevUid || prevUid === u.uid;   // 不把別人的本機資料搬進這個帳號
     const pre = canMigrate ? [...state.entries.values()] : [];
-    const preSettings = { budget: state.budget, petName: state.petName };
-    if (!canMigrate) { state.entries = new Map(); state.budget = 0; state.petName = "小錢"; outbox.clear(); }
+    const preSettings = settingsData();
+    if (!canMigrate) { state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; outbox.clear(); }
     lsSet(UID_KEY, u.uid);
     cloud = {
       entriesCol: { doc: id => ({ set: d => F.setDoc(F.doc(col, id), d), delete: () => F.deleteDoc(F.doc(col, id)) }) },
@@ -574,7 +623,8 @@
         }
       }
     };
-    let confirmed = false;
+    let confirmed = false, settingsConfirmed = false;
+    const checkReady = () => { if (confirmed && settingsConfirmed && !cloudReady) { cloudReady = true; runRecurring(); } };
     unsubs.push(F.onSnapshot(col, { includeMetadataChanges: true }, snap => {
       const m = new Map();
       snap.docs.forEach(d => { const x = d.data(); if (x && typeof x.amount === "number") m.set(d.id, { ...x, id: d.id }); });
@@ -593,20 +643,24 @@
       else if (confirmed) setSync("☁️ 已同步");
       if (snap.metadata.fromCache && !confirmed && m.size === 0 && state.entries.size) return; // 等雲端回覆，先保留畫面
       state.entries = m; local.save(); render();
+      checkReady();
     }, err => { setSync("⚠️ 同步失敗"); handleWriteErr(err); }));
     unsubs.push(F.onSnapshot(sdoc, s => {
       if (s.exists()) {
         const d = s.data(); state.budget = typeof d.budget === "number" ? d.budget : 0;
         if (typeof d.petName === "string" && d.petName) state.petName = d.petName.slice(0, 10);
+        if (Array.isArray(d.recurring)) state.recurring = d.recurring.filter(validRule).map(cleanRule);
+        else if (!s.metadata.fromCache && canMigrate && preSettings.recurring.length) { state.recurring = preSettings.recurring; cloud.settingsDoc.set(settingsData()).catch(handleWriteErr); }
         local.save(); render();
-      } else if (!s.metadata.fromCache && canMigrate && (preSettings.budget || preSettings.petName !== "小錢")) {
+      } else if (!s.metadata.fromCache && canMigrate && (preSettings.budget || preSettings.petName !== "小錢" || preSettings.recurring.length)) {
         cloud.settingsDoc.set(preSettings).catch(handleWriteErr);
       }
+      if (!s.metadata.fromCache) { settingsConfirmed = true; checkReady(); }
     }, () => {}));
   }
   function stopSync(keepData){
     unsubs.forEach(f => { try { f(); } catch {} }); unsubs = [];
-    cloud = null;
+    cloud = null; cloudReady = false;
     if (!keepData && hasCfg && fb) setSync("👤 未登入");
   }
   addEventListener("online", () => { if (cloud) setSync("⏳ 同步中…"); });
@@ -655,7 +709,7 @@
     if (!logoutArmed) { $("acLogout").textContent = "確定登出？（雲端資料會保留）"; $("acLogout").classList.add("armed"); logoutArmed = setTimeout(disarmLogout, 3000); return; }
     disarmLogout();
     try { await fb.A.signOut(fb.auth); } catch {}
-    state.entries = new Map(); state.budget = 0; state.petName = "小錢";
+    state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = [];
     lsSet(LS_KEY, null); lsSet(UID_KEY, null); outbox.clear();
     closeSheet(); render(); toast("已登出");
   };
@@ -951,6 +1005,12 @@
     $("bal").textContent = (bal < 0 ? "-" : "") + fmt(Math.abs(bal));
     $("bal").className = "bal " + (bal < 0 ? "exp" : "");
 
+    // 固定支出
+    const act = state.recurring.filter(r => !r.paused);
+    $("recLine").innerHTML = state.recurring.length
+      ? `🔁 固定支出 每月 <b>${fmt(act.reduce((a, r) => a + r.amount, 0))}</b><span>${act.length} 項${act.length < state.recurring.length ? `・${state.recurring.length - act.length} 項暫停` : ""}</span><span class="go">›</span>`
+      : `🔁 設定固定支出<span>房租、訂閱到期自動記帳</span><span class="go">›</span>`;
+
     // budget
     const bar = $("budgetBar");
     if (state.budget > 0) {
@@ -1005,7 +1065,7 @@
         ${items.map(e => `
           <button class="item" data-id="${esc(e.id)}">
             <span class="ic">${emojiOf(e.type, e.cat)}</span>
-            <span class="mid"><div class="c">${esc(e.cat)}${e.oneoff ? '<span class="tag">一次性</span>' : ""}</div>${e.note ? `<div class="n">${esc(e.note)}</div>` : ""}</span>
+            <span class="mid"><div class="c">${esc(e.cat)}${e.oneoff ? '<span class="tag">一次性</span>' : ""}${e.rec ? '<span class="tag">🔁 固定</span>' : ""}</div>${e.note ? `<div class="n">${esc(e.note)}</div>` : ""}</span>
             <span class="a ${e.type === "income" ? "inc" : "exp"}">${e.type === "income" ? "+" : "-"}${fmt(e.amount).slice(1)}</span>
           </button>`).join("")}
       </div>`;
@@ -1051,7 +1111,7 @@
   });
   function updateHint(){
     const amt = Number(($("amt").value || "").replace(/[,\s]/g, ""));
-    $("oneHint").hidden = !(form.type === "expense" && !$("oneoff").checked && (amt >= 10000 || form.cat === "3C" && amt >= 3000));
+    $("oneHint").hidden = !($("recHint").hidden && form.type === "expense" && !$("oneoff").checked && (amt >= 10000 || form.cat === "3C" && amt >= 3000));
   }
   $("amt").addEventListener("input", updateHint);
   $("oneoff").addEventListener("change", updateHint);
@@ -1069,6 +1129,9 @@
       $("oneoff").checked = !!entry.oneoff;
       $("amt").value = entry.amount; $("date").value = entry.date; $("note").value = entry.note || "";
       $("sheetTitle").textContent = "編輯紀錄"; $("delBtn").hidden = false;
+      const rule = entry.rec && state.recurring.find(r => r.id === entry.rec);
+      $("recHint").hidden = !entry.rec;
+      $("recHint").textContent = entry.rec ? `🔁 這筆是固定支出${rule ? `「${rule.name}」` : ""}自動記的。在這裡修改或刪除只影響這一筆，不會再自動補回來。` : "";
     } else {
       // default date: today if viewing current month, else 1st of viewed month
       const t = todayStr();
@@ -1076,7 +1139,7 @@
       Object.assign(form, { id: null, type: form.type || "expense" });
       if (!CATS[form.type].some(c => c[0] === form.cat)) form.cat = CATS[form.type][0][0];
       $("amt").value = ""; $("date").value = d; $("note").value = ""; $("oneoff").checked = false;
-      $("sheetTitle").textContent = "記一筆"; $("delBtn").hidden = true;
+      $("sheetTitle").textContent = "記一筆"; $("delBtn").hidden = true; $("recHint").hidden = true;
     }
     paintType();
     openSheet($("sheet"));
@@ -1101,6 +1164,7 @@
       amount: Math.round(amount * 100) / 100, date, note: $("note").value.trim(),
       createdAt: old ? old.createdAt : Date.now()
     };
+    if (old && old.rec) e.rec = old.rec;
     const g0 = computeGame();
     putEntry(e);
     closeSheet();
@@ -1172,6 +1236,7 @@
     const list = [...state.entries.values()].filter(e => e.date && e.date.startsWith(k) && (!dayLimit || +e.date.slice(8, 10) <= dayLimit));
     const exp = list.filter(e => e.type === "expense" && !e.oneoff), inc = list.filter(e => e.type === "income");
     const oneoff = list.filter(e => e.type === "expense" && e.oneoff);
+    const recSum = exp.filter(e => e.rec).reduce((s, e) => s + e.amount, 0);
     const sum = a => a.reduce((s, e) => s + e.amount, 0);
     const byCat = {};
     exp.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + e.amount);
@@ -1179,7 +1244,7 @@
     const daily = Array.from({ length: daysIn }, () => ({ amt: 0, n: 0 }));
     exp.forEach(e => { const d = +e.date.slice(8, 10); if (daily[d - 1]) { daily[d - 1].amt += e.amount; daily[d - 1].n++; } });
     const recDays = new Set(list.map(e => e.date)).size;
-    return { y, m, list, exp, expSum: sum(exp), oneoff, oneSum: sum(oneoff), incSum: sum(inc), byCat, daily, daysIn, recDays };
+    return { y, m, list, exp, recSum, expSum: sum(exp), oneoff, oneSum: sum(oneoff), incSum: sum(inc), byCat, daily, daysIn, recDays };
   }
   function barPath(x, y, w, h, r){
     if (h <= 0) return "";
@@ -1247,6 +1312,8 @@
         <div class="hero-k">本月開銷${isThisMonth ? "（到今天）" : ""}<span style="font-size:11px">・不含一次性支出</span></div>
         <div class="hero-v">${fmt(cur.expSum)}</div>
         ${deltaHTML(cur.expSum, prev.expSum, true)}
+        ${cur.recSum ? `<div class="budget"><div class="top"><span>🔁 其中固定支出 ${fmt(cur.recSum)}</span><span>佔 ${Math.round(cur.recSum / cur.expSum * 100)}%</span></div>
+          <div class="bar"><i style="width:${(cur.recSum / cur.expSum * 100).toFixed(1)}%"></i></div></div>` : ""}
         <div class="grid4">
           <div class="pill"><div class="k">收入</div><div class="v">${fmt(cur.incSum)}</div></div>
           <div class="pill"><div class="k">結餘</div><div class="v">${bal < 0 ? "-" : ""}${fmt(Math.abs(bal))}</div></div>
@@ -1285,9 +1352,9 @@
       <section class="card">
         <div class="sec-title"><h2>近 6 個月開銷</h2>${state.budget > 0 ? `<span>紅色虛線＝預算</span>` : ""}</div>
         <div class="chart" id="chTrend"></div>
-        <table class="mt"><thead><tr><th>月份</th><th>收入</th><th>開銷</th><th>一次性</th><th>結餘</th></tr></thead><tbody>
+        <table class="mt"><thead><tr><th>月份</th><th>收入</th><th>開銷</th><th>固定</th><th>一次性</th><th>結餘</th></tr></thead><tbody>
           ${months.slice().reverse().map(s => { const b = s.incSum - s.expSum - s.oneSum; return `<tr class="${s.y === y && s.m === m ? "cur" : ""}"><td>${s.y !== y ? s.y + "/" : ""}${s.m} 月</td>
-            <td>${fmt(s.incSum)}</td><td>${fmt(s.expSum)}</td><td>${s.oneSum ? fmt(s.oneSum) : "—"}</td><td>${b < 0 ? "-" : ""}${fmt(Math.abs(b))}</td></tr>`; }).join("")}
+            <td>${fmt(s.incSum)}</td><td>${fmt(s.expSum)}</td><td>${s.recSum ? fmt(s.recSum) : "—"}</td><td>${s.oneSum ? fmt(s.oneSum) : "—"}</td><td>${b < 0 ? "-" : ""}${fmt(Math.abs(b))}</td></tr>`; }).join("")}
         </tbody></table>
       </section>`;
 
@@ -1379,7 +1446,7 @@
   // ---------- backup / import ----------
   $("backupBtn").onclick = () => {
     const data = { app: "ledger", version: 1, exportedAt: new Date().toISOString(),
-      budget: state.budget, petName: state.petName, entries: [...state.entries.values()].map(clean) };
+      budget: state.budget, petName: state.petName, recurring: state.recurring.map(cleanRule), entries: [...state.entries.values()].map(clean) };
     $("bkText").value = JSON.stringify(data);
     openSheet($("bkSheet"));
   };
@@ -1433,12 +1500,14 @@
     const skipped = list.length - list.filter(validEntry).length;
     if (data.petName && state.petName === "小錢") state.petName = String(data.petName).slice(0, 10);
     if (data.budget > 0 && !state.budget) state.budget = Math.round(data.budget);
+    const newRules = (Array.isArray(data.recurring) ? data.recurring : []).filter(validRule).map(cleanRule).filter(r => !state.recurring.some(x => x.id === r.id));
+    state.recurring = state.recurring.concat(newRules);
     fresh.forEach(e => state.entries.set(e.id, e));
     closeSheet(); render(); local.save();
-    const msg = `已匯入 ${fresh.length} 筆紀錄` + (list.length - skipped - fresh.length > 0 ? `（${list.length - skipped - fresh.length} 筆原本就有）` : "") + (skipped ? `，${skipped} 筆格式不對略過` : "");
+    const msg = `已匯入 ${fresh.length} 筆紀錄` + (newRules.length ? `、${newRules.length} 項固定支出` : "") + (list.length - skipped - fresh.length > 0 ? `（${list.length - skipped - fresh.length} 筆原本就有）` : "") + (skipped ? `，${skipped} 筆格式不對略過` : "");
     if (cloud) {
       toast(`匯入中…（${fresh.length} 筆）`);
-      try { await cloud.bulkSet(fresh); await cloud.settingsDoc.set({ budget: state.budget, petName: state.petName }); toast(msg); }
+      try { await cloud.bulkSet(fresh); await cloud.settingsDoc.set(settingsData()); toast(msg); }
       catch (err) { handleWriteErr(err); }
     } else { fresh.forEach(e => queueIfOffline({ e })); toast(msg); }
   }
@@ -1450,11 +1519,132 @@
     try { importBackup(await f.text()); } catch { $("imErr").textContent = "讀不到這個檔案，請再試一次"; }
   };
 
+  // ---------- 固定支出 ----------
+  const nextYm = ym => { const [y, m] = ym.split("-").map(Number); const [a, b] = addMonth([y, m], 1); return ymOf(a, b); };
+  const prevYm = ym => { const [y, m] = ym.split("-").map(Number); const [a, b] = addMonth([y, m], -1); return ymOf(a, b); };
+  const dueDate = (ym, day) => { const [y, m] = ym.split("-").map(Number); return `${ym}-${pad(Math.min(day, new Date(y, m, 0).getDate()))}`; };
+  // 第一個要自動記的月份：這個月的扣款日還沒過就從這個月開始，否則從下個月
+  const firstYm = day => { const t = todayStr(), ym = t.slice(0, 7); return dueDate(ym, day) >= t ? ym : nextYm(ym); };
+  const nextDue = r => dueDate(r.done ? nextYm(r.done) : r.start, r.day);
+
+  let recRunning = false;
+  async function runRecurring(){
+    if (recRunning || readOnly || !state.recurring.length) return;
+    if (hasCfg && lsGet(UID_KEY) && !cloudReady) return;   // 已登入：等雲端資料到齊再跑，避免各裝置重複或補回已刪的
+    recRunning = true;
+    const today = todayStr(), curYm = today.slice(0, 7);
+    const made = []; let changed = false;
+    state.recurring.forEach(r => {
+      if (r.paused) return;
+      let ym = r.done ? nextYm(r.done) : r.start;
+      while (ym <= curYm) {
+        const date = dueDate(ym, r.day);
+        if (date > today) break;
+        const id = `r-${r.id}-${ym}`;   // 固定的編號：兩台裝置同時補記也只會有一筆
+        if (!state.entries.has(id)) made.push({ id, type: "expense", cat: r.cat, amount: r.amount, date, note: r.name, oneoff: false, createdAt: Date.now(), rec: r.id });
+        r.done = ym; changed = true; ym = nextYm(ym);
+      }
+    });
+    if (!changed) { recRunning = false; return; }
+    const g0 = computeGame();
+    made.forEach(e => state.entries.set(e.id, e));
+    local.save();
+    if (cloud) {
+      try { await cloud.bulkSet(made); } catch (err) { handleWriteErr(err); }
+    } else made.forEach(e => queueIfOffline({ e: clean(e) }));
+    await putSettings();
+    recRunning = false;
+    if (!made.length) return;
+    const g1 = computeGame(), gained = g1.xp - g0.xp;
+    const names = [...new Set(made.map(e => e.note))].slice(0, 3).join("、");
+    toast(`🔁 已自動記入 ${made.length} 筆固定支出（${names}${made.length > 3 ? "…" : ""}）`);
+    if (gained > 0) setTimeout(() => {
+      floatXP(`+${gained} XP`);
+      if (g1.lvl > g0.lvl) setTimeout(() => celebrate(g1, stageOf(g1.lvl) > stageOf(g0.lvl)), 700);
+    }, 400);
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { render(); runRecurring(); } });
+
+  function renderRecList(){
+    const rs = [...state.recurring].sort((a, b) => a.paused - b.paused || a.day - b.day);
+    $("recList").innerHTML = rs.length ? rs.map(r => {
+      const nd = nextDue(r);
+      return `<button class="item" data-r="${esc(r.id)}"><span class="ic">${emojiOf("expense", r.cat)}</span>
+        <span class="mid"><div class="c">${esc(r.name || r.cat)}${r.paused ? '<span class="tag paused">暫停中</span>' : ""}</div>
+        <div class="n">每月 ${r.day} 號・${esc(r.cat)}${r.paused ? "" : `・下次 ${+nd.slice(5, 7)}/${+nd.slice(8)}`}</div></span>
+        <span class="a">${fmt(r.amount)}</span></button>`;
+    }).join("") : `<div class="empty">還沒有固定支出<br>像房租、手機月租、Netflix 這種每個月都要付的，設定一次就好</div>`;
+  }
+  $("recLine").onclick = () => { renderRecList(); openSheet($("rlSheet")); };
+  $("recList").onclick = e => { const b = e.target.closest("[data-r]"); if (b) openRule(state.recurring.find(r => r.id === b.dataset.r)); };
+  $("recAdd").onclick = () => openRule(null);
+  $("reDay").innerHTML = Array.from({ length: 31 }, (_, i) => `<option value="${i + 1}">每月 ${i + 1} 號</option>`).join("");
+
+  const rForm = { id: null, cat: "居住" };
+  function paintRuleCats(){
+    $("reCats").innerHTML = CATS.expense.map(([c, em]) => `<button data-c="${c}" class="${c === rForm.cat ? "on" : ""}"><b>${em}</b>${c}</button>`).join("");
+  }
+  $("reCats").onclick = e => { const b = e.target.closest("button"); if (!b) return; rForm.cat = b.dataset.c; paintRuleCats(); };
+  function paintReNow(){
+    const day = +$("reDay").value, t = todayStr();
+    const passed = !rForm.id && dueDate(t.slice(0, 7), day) < t;
+    $("reNowRow").hidden = !passed;
+    if (passed) $("reNowText").textContent = `這個月的 ${+dueDate(t.slice(0, 7), day).slice(8)} 號已經過了。如果你還沒手動記這個月的，打開就會幫你補上一筆；不然會從下個月開始。`;
+  }
+  $("reDay").onchange = paintReNow;
+  function openRule(r){
+    if (readOnly) { toast("目前為唯讀"); return; }
+    closeSheet();
+    $("reErr").textContent = ""; disarmRe();
+    rForm.id = r ? r.id : null; rForm.cat = r ? r.cat : "居住";
+    $("reTitle").textContent = r ? "編輯固定支出" : "新增固定支出";
+    $("reAmt").value = r ? r.amount : ""; $("reName").value = r ? r.name : "";
+    $("reDay").value = r ? r.day : Math.min(new Date().getDate(), 31);
+    $("reNow").checked = false; $("rePause").checked = r ? !!r.paused : false;
+    $("rePauseRow").hidden = !r; $("reDel").hidden = !r;
+    paintRuleCats(); paintReNow();
+    setTimeout(() => openSheet($("reSheet")), 0);
+    if (!r) setTimeout(() => $("reAmt").focus(), 260);
+  }
+  function backToList(){ closeSheet(); renderRecList(); setTimeout(() => openSheet($("rlSheet")), 0); }
+  $("reBack").onclick = backToList;
+  $("reSave").onclick = () => {
+    const raw = $("reAmt").value.replace(/[,\s]/g, ""), amount = Number(raw);
+    if (!raw || !isFinite(amount) || amount <= 0) { $("reErr").textContent = "請輸入大於 0 的金額"; return; }
+    if (amount > 1e9) { $("reErr").textContent = "金額太大了"; return; }
+    const name = $("reName").value.trim();
+    if (!name) { $("reErr").textContent = "幫它取個名字吧，例如「房租」"; return; }
+    const day = +$("reDay").value, amt = Math.round(amount * 100) / 100;
+    const old = rForm.id && state.recurring.find(r => r.id === rForm.id);
+    if (old) {
+      const pause = $("rePause").checked;
+      if (old.paused && !pause) { const f = firstYm(day); old.done = prevYm(f); if (old.start > f) old.start = f; }   // 恢復：不補記暫停期間
+      Object.assign(old, { name, cat: rForm.cat, amount: amt, day, paused: pause });
+      toast(pause ? `已暫停「${name}」` : `已更新「${name}」`);
+    } else {
+      const now = !$("reNowRow").hidden && $("reNow").checked;
+      state.recurring.push({ id: newId(), name, cat: rForm.cat, amount: amt, day, start: now ? todayStr().slice(0, 7) : firstYm(day), paused: false });
+      toast(`已新增「${name}」：每月 ${day} 號自動記帳`);
+    }
+    putSettings(); backToList(); runRecurring();
+  };
+  let reArm = null;
+  function disarmRe(){ clearTimeout(reArm); reArm = null; $("reDel").classList.remove("armed"); $("reDel").textContent = "刪除"; }
+  $("reDel").onclick = () => {
+    if (!reArm) { $("reDel").classList.add("armed"); $("reDel").textContent = "確定刪除？"; reArm = setTimeout(disarmRe, 3000); return; }
+    disarmRe();
+    const r = state.recurring.find(x => x.id === rForm.id);
+    state.recurring = state.recurring.filter(x => x.id !== rForm.id);
+    putSettings(); toast(`已刪除「${r ? r.name : ""}」（之前記過的帳會保留）`); backToList();
+  };
+  ["reAmt", "reName"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") $("reSave").click(); }));
+
   // toast
   let tt = null;
   function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 1800); }
 
   render();
+  runRecurring();
 
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
