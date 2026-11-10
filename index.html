@@ -216,6 +216,29 @@
   .home.show{transform:none}
   .home-note{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:0 2px 12px}
   .home-note button{color:var(--accent);font-size:12px;flex:none}
+  .topbar{z-index:2}
+  .wx{position:absolute;inset:0;pointer-events:none;z-index:1}
+  .wx-rain,.wx-storm{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='80'%3E%3Cg stroke='rgba(215,232,252,0.7)' stroke-width='1.4' stroke-linecap='round'%3E%3Cline x1='10' y1='5' x2='7' y2='19'/%3E%3Cline x1='34' y1='30' x2='31' y2='44'/%3E%3Cline x1='52' y1='58' x2='49' y2='72'/%3E%3Cline x1='22' y1='60' x2='19' y2='74'/%3E%3Cline x1='46' y1='6' x2='43' y2='20'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='70'%3E%3Cg stroke='rgba(215,232,252,0.45)' stroke-width='1' stroke-linecap='round'%3E%3Cline x1='8' y1='10' x2='6' y2='20'/%3E%3Cline x1='30' y1='40' x2='28' y2='50'/%3E%3C/g%3E%3C/svg%3E");
+    animation:rainfall .5s linear infinite}
+  @keyframes rainfall{from{background-position:0 0,0 0}to{background-position:-14px 80px,-10px 70px}}
+  .wx-storm:after{content:"";position:absolute;inset:0;background:#fff;opacity:0;animation:flash 8s infinite}
+  @keyframes flash{0%,91%,93.5%,95%,100%{opacity:0}92%{opacity:.55}94%{opacity:.35}}
+  .wx-snow{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cg fill='white' opacity='.85'%3E%3Ccircle cx='12' cy='14' r='2.2'/%3E%3Ccircle cx='55' cy='40' r='1.6'/%3E%3Ccircle cx='78' cy='72' r='2.4'/%3E%3Ccircle cx='30' cy='66' r='1.8'/%3E%3C/g%3E%3C/svg%3E");animation:snowfall 6s linear infinite}
+  @keyframes snowfall{from{background-position:0 0}to{background-position:30px 90px}}
+  .wx-fog{background:linear-gradient(to top,rgba(255,255,255,.6),rgba(255,255,255,.28) 45%,rgba(255,255,255,.12))}
+  .pet-cloud,.pet-umb{position:absolute;left:50%;transform:translateX(-50%);pointer-events:none}
+  .pet-cloud{width:62%;top:-40%;animation:bob 2.4s ease-in-out infinite}
+  .pet-cloud .drops{animation:drip .8s linear infinite}
+  @keyframes drip{from{transform:translateY(-3px);opacity:1}to{transform:translateY(4px);opacity:.2}}
+  .pet-umb{width:84%;top:-30%}
+  .pet-stage.hat .pet-say{bottom:128%}
+  .pet-stage.hat.cloud .pet-say{bottom:150%}
+  .pet-stage.cloud.hat .pet-cloud{top:-62%}
+  .loc-quick{display:flex;flex-wrap:wrap;gap:6px}
+  .loc-quick button,#locResults button{background:var(--bg);border-radius:99px;padding:5px 11px;font-size:13px}
+  #locResults{display:flex;flex-wrap:wrap;gap:6px}
+  #locResults button.on,.loc-quick button.on{background:var(--accent-soft);color:var(--accent)}
+  @media (prefers-reduced-motion: reduce){ .wx,.wx:after,.pet-cloud,.pet-cloud .drops{animation:none!important} }
   :root{--sav:#b7791f}
   @media (prefers-color-scheme: dark){ :root{--sav:#e7b75a} }
   .sav{color:var(--sav)}
@@ -318,9 +341,12 @@
     <div class="gate-badges" id="badges"></div>
     <div class="pet-stage" id="petStage" role="button" aria-label="摸摸寵物">
       <div class="pet-say" id="bubble" hidden></div>
+      <div class="pet-cloud" id="petCloud" hidden><svg viewBox="0 0 60 40"><g fill="#6b7480"><ellipse cx="30" cy="20" rx="20" ry="11"/><ellipse cx="18" cy="22" rx="12" ry="9"/><ellipse cx="42" cy="22" rx="12" ry="9"/><ellipse cx="34" cy="13" rx="11" ry="9"/></g><g class="drops" stroke="#7cc4f2" stroke-width="2.4" stroke-linecap="round"><line x1="20" y1="33" x2="18" y2="39"/><line x1="31" y1="34" x2="29" y2="40"/><line x1="42" y1="33" x2="40" y2="39"/></g></svg></div>
+      <div class="pet-umb" id="petUmb" hidden><svg viewBox="0 0 80 70"><path d="M40 6 C18 6 4 22 4 36 Q13 30 22 36 Q31 30 40 36 Q49 30 58 36 Q67 30 76 36 C76 22 62 6 40 6Z" fill="#e2445c"/><path d="M40 6 Q30 20 22 36 M40 6 Q50 20 58 36 M40 6 V36" stroke="#b02a3e" stroke-width="1.5" fill="none"/><circle cx="40" cy="5" r="2.5" fill="#b02a3e"/><path d="M40 36 V60 Q40 66 34 66 Q30 66 30 61" stroke="#5f3b1a" stroke-width="3" fill="none" stroke-linecap="round"/></svg></div>
       <div class="pet-flip" id="petSvg"></div>
     </div>
   </div></div>
+  <div class="wx" id="wx"></div>
   <div class="topbar">
     <div class="tb-row">
       <button class="pet-chip" id="petChip" aria-label="找小錢">
@@ -341,6 +367,7 @@
     <button class="x" id="homeClose" aria-label="回莊園">×</button>
   </div>
   <div class="home-note"><span id="homeNote"></span><button id="renamePet">✎ 幫小錢改名</button></div>
+  <div class="home-note"><span id="locNote">📍 莊園天氣：還沒設定地區（目前照季節顯示）</span><button id="locBtn">設定地區</button></div>
 
   <div class="month">
     <button id="prev" aria-label="上個月">‹</button>
@@ -457,6 +484,24 @@
   <div class="actions">
     <button class="btn danger" id="reDel" hidden>刪除</button>
     <button class="btn primary" id="reSave">儲存</button>
+  </div>
+</div>
+
+<!-- location sheet -->
+<div class="sheet" id="locSheet" role="dialog" aria-modal="true">
+  <h3><span>📍 莊園天氣地區</span><button data-close aria-label="關閉">×</button></h3>
+  <p class="lead">莊園會跟著這裡的真實天氣下雨、出太陽，日出日落也照當地時間。只會用這個地區的大概座標去查天氣。</p>
+  <button class="btn ghost" id="locGps" style="width:100%;margin-bottom:12px">📍 用我現在的位置</button>
+  <div class="filter"><input id="locQ" type="search" placeholder="搜尋地名，例如：板橋、鳳山"><button class="btn ghost" id="locSearch" style="flex:none;padding:8px 14px">搜尋</button></div>
+  <div id="locResults"></div>
+  <p class="lead" style="margin:10px 0 6px">或選縣市：</p>
+  <div class="loc-quick" id="locQuick"></div>
+  <div class="field" style="margin-top:12px"><label>顯示名稱<input id="locName" maxlength="20" placeholder="例如：新北市板橋區"></label></div>
+  <p class="lead" id="locPick" style="margin-top:-4px"></p>
+  <div class="err" id="locErr"></div>
+  <div class="actions">
+    <button class="btn danger" id="locOff" style="border:1px solid var(--line)">不綁天氣</button>
+    <button class="btn primary" id="locSave">儲存</button>
   </div>
 </div>
 
@@ -586,6 +631,7 @@
     petName: "小錢",
     recurring: [],        // 固定支出／固定存錢規則
     sweep: "",            // 月底結餘已經問到哪個月（YYYY-MM）
+    loc: null,            // 莊園天氣地區 { name, lat, lon }
     ym: (() => { const d = new Date(); return [d.getFullYear(), d.getMonth()+1]; })(),
     catTab: "expense",
     q: ""
@@ -595,7 +641,7 @@
   const LS_KEY = "ledger.v1";
   const local = {
     load(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; } },
-    save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ entries:[...state.entries.values()], budget: state.budget, petName: state.petName, recurring: state.recurring, sweep: state.sweep })); } catch {} }
+    save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ entries:[...state.entries.values()], budget: state.budget, petName: state.petName, recurring: state.recurring, sweep: state.sweep, loc: state.loc })); } catch {} }
   };
   let cloud = null; // { entriesCol, settingsDoc }
   let readOnly = false;
@@ -612,8 +658,10 @@
     if (r.kind === "saving") o.kind = "saving";   // 固定存錢（沒有這欄＝固定支出）
     return o; };
   const validYm = s => typeof s === "string" && /^\d{4}-\d{2}$/.test(s);
+  const cleanLoc = l => l && typeof l.lat === "number" && typeof l.lon === "number" && Math.abs(l.lat) <= 90 && Math.abs(l.lon) <= 180
+    ? { name: String(l.name || "").slice(0, 20) || "我的位置", lat: Math.round(l.lat * 100) / 100, lon: Math.round(l.lon * 100) / 100 } : null;
   const settingsData = () => { const o = { budget: state.budget, petName: state.petName, recurring: state.recurring.map(cleanRule) };
-    if (validYm(state.sweep)) o.sweep = state.sweep; return o; };
+    if (validYm(state.sweep)) o.sweep = state.sweep; o.loc = state.loc || null; return o; };
 
   async function putEntry(e){
     state.entries.set(e.id, e); render();
@@ -656,6 +704,7 @@
     if (saved.petName) state.petName = saved.petName;
     if (Array.isArray(saved.recurring)) state.recurring = saved.recurring.filter(validRule).map(cleanRule);
     if (validYm(saved.sweep)) state.sweep = saved.sweep;
+    state.loc = cleanLoc(saved.loc);
   }
 
   // ---------- Firebase 雲端同步 ----------
@@ -701,7 +750,7 @@
     const canMigrate = !prevUid || prevUid === u.uid;   // 不把別人的本機資料搬進這個帳號
     const pre = canMigrate ? [...state.entries.values()] : [];
     const preSettings = settingsData();
-    if (!canMigrate) { state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = ""; outbox.clear(); }
+    if (!canMigrate) { state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = ""; state.loc = null; outbox.clear(); }
     lsSet(UID_KEY, u.uid);
     cloud = {
       entriesCol: { doc: id => ({ set: d => F.setDoc(F.doc(col, id), d), delete: () => F.deleteDoc(F.doc(col, id)) }) },
@@ -741,6 +790,8 @@
         const d = s.data(); state.budget = typeof d.budget === "number" ? d.budget : 0;
         if (typeof d.petName === "string" && d.petName) state.petName = d.petName.slice(0, 10);
         if (validYm(d.sweep) && d.sweep > state.sweep) state.sweep = d.sweep;
+        if (d.loc !== undefined) { state.loc = cleanLoc(d.loc); fetchWx(); }
+        else if (!s.metadata.fromCache && canMigrate && preSettings.loc) cloud.settingsDoc.set(settingsData()).catch(handleWriteErr);
         if (Array.isArray(d.recurring)) state.recurring = d.recurring.filter(validRule).map(cleanRule);
         else if (!s.metadata.fromCache && canMigrate && preSettings.recurring.length) { state.recurring = preSettings.recurring; cloud.settingsDoc.set(settingsData()).catch(handleWriteErr); }
         local.save(); render();
@@ -801,7 +852,7 @@
     if (!logoutArmed) { $("acLogout").textContent = "確定登出？（雲端資料會保留）"; $("acLogout").classList.add("armed"); logoutArmed = setTimeout(disarmLogout, 3000); return; }
     disarmLogout();
     try { await fb.A.signOut(fb.auth); } catch {}
-    state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = "";
+    state.entries = new Map(); state.budget = 0; state.petName = "小錢"; state.recurring = []; state.sweep = ""; state.loc = null;
     lsSet(LS_KEY, null); lsSet(UID_KEY, null); outbox.clear();
     closeSheet(); render(); toast("已登出");
   };
@@ -1110,8 +1161,58 @@
       thisMonth: entries.some(e => e.date && e.date.startsWith(ym)),
       over: state.budget > 0 && g.monthExp > state.budget,
       season: mo >= 3 && mo <= 5 ? "spring" : mo >= 6 && mo <= 8 ? "summer" : mo >= 9 && mo <= 11 ? "autumn" : "winter",
-      time: h >= 6 && h < 17 ? "day" : h >= 17 && h < 19 ? "dusk" : "night"
+      time: dayPart(d), wx: wxNow().kind
     };
+  }
+
+  // ---------- 真實天氣（Open-Meteo，免費、不用帳號） ----------
+  const WX_KEY = "ledger.wx";
+  let wxData = (() => { try { return JSON.parse(lsGet(WX_KEY) || "null"); } catch { return null; } })();
+  const WX_TEXT = { clear: ["☀️", "晴"], partly: ["⛅", "晴時多雲"], cloudy: ["☁️", "多雲"], fog: ["🌫️", "起霧"], rain: ["🌧️", "下雨"], storm: ["⛈️", "雷雨"], snow: ["❄️", "下雪"] };
+  function wxKind(code, cloud){
+    if (code === 0) return cloud > 50 ? "partly" : "clear";
+    if (code === 1 || code === 2) return "partly";
+    if (code === 3) return "cloudy";
+    if (code === 45 || code === 48) return "fog";
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
+    if (code >= 95) return "storm";
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
+    return "partly";
+  }
+  // 目前天氣：有設定地區、而且 6 小時內查過才用；不然就是「晴時多雲」的預設天空
+  function wxNow(){
+    if (window.__ledgerWx) return { kind: wxKind(window.__ledgerWx.code, window.__ledgerWx.cloud || 0), temp: window.__ledgerWx.temp, real: true };
+    const w = wxData, L = state.loc;
+    if (L && w && w.lat === L.lat && w.lon === L.lon && Date.now() - w.at < 6 * 36e5) return { kind: wxKind(w.code, w.cloud), temp: w.temp, real: true, sunrise: w.sunrise, sunset: w.sunset };
+    return { kind: "partly", real: false };
+  }
+  function dayPart(d){
+    const w = wxNow();
+    const rise = w.sunrise && Date.parse(w.sunrise), set = w.sunset && Date.parse(w.sunset);
+    if (rise && set && !window.__ledgerNow) {
+      const t = d.getTime(), m = 6e4;
+      if (t >= rise + 20 * m && t < set - 40 * m) return "day";
+      if ((t >= set - 40 * m && t < set + 25 * m) || (t >= rise - 25 * m && t < rise + 20 * m)) return "dusk";
+      return "night";
+    }
+    const h = d.getHours();
+    return h >= 6 && h < 17 ? "day" : h >= 17 && h < 19 ? "dusk" : "night";
+  }
+  let wxBusy = false;
+  async function fetchWx(force){
+    const L = state.loc; if (!L || wxBusy) return;
+    if (!force && wxData && wxData.lat === L.lat && wxData.lon === L.lon && Date.now() - wxData.at < 30 * 6e4) return;
+    wxBusy = true;
+    try {
+      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${L.lat}&longitude=${L.lon}&current=temperature_2m,weather_code,cloud_cover&daily=sunrise,sunset&timezone=auto&forecast_days=1`);
+      const j = await r.json();
+      if (j && j.current && typeof j.current.weather_code === "number") {
+        wxData = { at: Date.now(), lat: L.lat, lon: L.lon, code: j.current.weather_code, cloud: j.current.cloud_cover || 0, temp: j.current.temperature_2m,
+          sunrise: j.daily && j.daily.sunrise && j.daily.sunrise[0], sunset: j.daily && j.daily.sunset && j.daily.sunset[0] };
+        lsSet(WX_KEY, JSON.stringify(wxData)); render();
+      }
+    } catch {}   // 沒網路就沿用上次的天氣
+    wxBusy = false;
   }
   const MW = 1080, MH = 200, GY = 178, BOT = 72;
   // 依螢幕高度決定放大倍率；多出來的高度補成上方天空、下方草地
@@ -1122,7 +1223,8 @@
     spring: { ground: "#a8d67c", hill: "#8cc56b", far: "#c3e2ae", tree: "#7cbf5a", road: "#ead6a8" },
     summer: { ground: "#8cc366", hill: "#67ac4b", far: "#a9d690", tree: "#4f9a3a", road: "#ead6a8" },
     autumn: { ground: "#c9c87a", hill: "#d6a457", far: "#e8d3a2", tree: "#e08a3a", road: "#e6cf9c" },
-    winter: { ground: "#e8eef0", hill: "#cfd9dd", far: "#e2e8eb", tree: "#a4b6bb", road: "#d8d2c4" }
+    winter: { ground: "#b9be8a", hill: "#a4ad7c", far: "#cfd3b8", tree: "#8f9c62", road: "#e2d2ab" },
+    snow: { ground: "#e8eef0", hill: "#cfd9dd", far: "#e2e8eb", tree: "#a4b6bb", road: "#d8d2c4" }
   };
   const txt = (x, y, s, size = 11, fill = "#4a3216", w = 400) =>
     `<text x="${x}" y="${y}" font-size="${size}" font-weight="${w}" fill="${fill}" text-anchor="middle" font-family="inherit">${esc(s)}</text>`;
@@ -1140,8 +1242,10 @@
   function snowCap(points){ return `<polyline points="${points}" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`; }
 
   function sceneSVG(m, D){
-    const P = SEASON[m.season], night = m.time === "night", winter = m.season === "winter";
-    const sky = m.over ? { day: "#c3cad0", dusk: "#d9bba4", night: "#1a2236" }[m.time] : { day: "#bfe3f5", dusk: "#f6c99c", night: "#1f2b4d" }[m.time];
+    // winter＝真的下雪（積雪、結冰）；季節的冬天另外看 m.season
+    const winter = m.wx === "snow", P = winter ? SEASON.snow : SEASON[m.season], night = m.time === "night";
+    const grey = ["cloudy", "fog", "rain", "storm", "snow"].includes(m.wx), wet = m.wx === "rain" || m.wx === "storm";
+    const sky = grey ? { day: wet ? "#a9b4bd" : "#c3cad0", dusk: "#cdb3a0", night: "#1a2236" }[m.time] : { day: "#bfe3f5", dusk: "#f6c99c", night: "#1f2b4d" }[m.time];
     let s = "", lights = "";
     // 天空、遠山、地面、道路
     const { k, VH, TOP } = D;
@@ -1154,14 +1258,18 @@
       outer += mt(TOP + 70, TOP * .62, 1.3, P.hill, .28)
         + mt(TOP + 80, TOP * .38, 4.1, P.hill, .45) + mt(TOP + 90, TOP * .2, 7.7, P.far, .9);
     }
-    if (night) {
+    if (night && !grey) {
       const sh = TOP + 86;
       for (let i = 0; i < 40 + TOP / 4; i++) { const x = (i * 97 + 31) % MW, y = (i * 53 + 7) % sh + 6; outerLights += `<circle cx="${x}" cy="${y}" r="${i % 3 ? .9 : 1.4}" fill="#fff" opacity=".85"/>`; }
       lights += `<circle cx="66" cy="40" r="15" fill="#f6f1cf"/><circle cx="73" cy="35" r="13" fill="${sky}"/>`;
-    } else if (!m.over) s += `<circle cx="66" cy="${m.time === "dusk" ? 64 : 40}" r="17" fill="${m.time === "dusk" ? "#ff9f4a" : "#ffd75e"}"/>`;
+    } else if (!grey) s += `<circle cx="66" cy="${m.time === "dusk" ? 64 : 40}" r="17" fill="${m.time === "dusk" ? "#ff9f4a" : "#ffd75e"}"/>`;
     const cloud = (x, y, k, c) => `<g fill="${c}"><ellipse cx="${x}" cy="${y}" rx="${22 * k}" ry="${9 * k}"/><ellipse cx="${x + 14 * k}" cy="${y - 6 * k}" rx="${14 * k}" ry="${9 * k}"/><ellipse cx="${x - 12 * k}" cy="${y - 3 * k}" rx="${11 * k}" ry="${7 * k}"/></g>`;
-    if (m.over) [[90, 34, 1.2], [300, 40, 1.5], [520, 30, 1.3], [760, 38, 1.4], [980, 30, 1.2], [200, 34 - TOP * .6, 1.6], [640, 30 - TOP * .45, 1.4], [900, 40 - TOP * .7, 1.5]].forEach(([x, y, c]) => s += cloud(x, y, c, night ? "#2c3550" : "#8f99a1"));
-    else if (!night) [[150, 30, 1], [560, 44, .9], [880, 26, 1.1], [420, 30 - TOP * .55, 1.3], [760, 40 - TOP * .8, 1], [60, 40 - TOP * .4, .9]].forEach(([x, y, c]) => s += cloud(x, y, c, "#ffffff"));
+    const many = [[90, 34, 1.2], [300, 40, 1.5], [520, 30, 1.3], [760, 38, 1.4], [980, 30, 1.2], [200, 34 - TOP * .6, 1.6], [640, 30 - TOP * .45, 1.4], [900, 40 - TOP * .7, 1.5], [420, 36 - TOP * .3, 1.3]];
+    const few = [[150, 30, 1], [560, 44, .9], [880, 26, 1.1], [420, 30 - TOP * .55, 1.3], [760, 40 - TOP * .8, 1], [60, 40 - TOP * .4, .9]];
+    if (wet) many.forEach(([x, y, c]) => s += cloud(x, y, c, night ? "#2c3550" : "#8a949c"));
+    else if (grey) many.forEach(([x, y, c]) => s += cloud(x, y, c, night ? "#2a3350" : "#e4e8eb"));
+    else if (m.wx === "partly") few.forEach(([x, y, c]) => s += cloud(x, y, c, night ? "#2a3452" : "#ffffff"));
+    else if (!night) few.slice(0, 2).forEach(([x, y, c]) => s += cloud(x, y, c * .8, "#ffffff"));
     s += `<path d="M0 104 L60 82 L130 98 L210 70 L300 96 L380 76 L470 100 L560 72 L650 94 L740 68 L830 96 L920 78 L1010 98 L1080 84 L1080 130 L0 130Z" fill="${P.far}"/>`;
     s += `<path d="M0 120 Q120 100 240 116 T480 112 T720 118 T960 108 T1200 116 L1080 140 L0 140Z" fill="${P.hill}"/>`;
     s += `<rect y="124" width="${MW}" height="${MH - 124}" fill="${P.ground}"/>`;
@@ -1236,7 +1344,7 @@
         s += `<ellipse cx="${cx}" cy="160" rx="82" ry="20" fill="#8c7a5c"/><ellipse cx="${cx}" cy="159" rx="76" ry="16" fill="${winter ? "#d6ecf4" : "#7fc1e3"}"/>`;
         [[-70, 168], [-30, 176], [20, 177], [64, 170]].forEach(([dx, y]) => s += `<ellipse cx="${cx + dx}" cy="${y}" rx="9" ry="5" fill="#a8a29a"/>`);
         if (m.pond >= 2) [[-45, 154], [-12, 162], [26, 152], [52, 161], [-58, 162]].forEach(([dx, y]) => s += `<ellipse cx="${cx + dx}" cy="${y}" rx="10" ry="4" fill="${winter ? "#9a8f6a" : "#4f9a46"}"/>`);
-        if (m.pond >= 3 && !winter) [[-45, 150], [26, 148], [52, 157]].forEach(([dx, y]) => s +=
+        if (m.pond >= 3 && m.season !== "winter" && !winter) [[-45, 150], [26, 148], [52, 157]].forEach(([dx, y]) => s +=
           `<g transform="translate(${cx + dx} ${y})"><path d="M0 0 C-6 -2 -6 -9 0 -12 C6 -9 6 -2 0 0Z" fill="#f29bbd"/><path d="M0 0 C-9 -1 -10 -6 -7 -9 C-3 -6 -1 -3 0 0Z M0 0 C9 -1 10 -6 7 -9 C3 -6 1 -3 0 0Z" fill="#ec7aa5"/></g>`);
         if (m.pond >= 4) [[-22, 158, 1], [10, 166, -1]].forEach(([dx, y, d]) => s +=
           `<g transform="translate(${cx + dx} ${y}) scale(${d} 1)"><ellipse rx="8" ry="3.4" fill="#f07c2c"/><path d="M-7 0 L-13 -4 L-12 4Z" fill="#f07c2c"/><circle cx="2" cy="-1" r="1.6" fill="#fff"/></g>`);
@@ -1337,9 +1445,81 @@
     const money = state.budget > 0
       ? (exp <= state.budget ? `💰 本月預算還剩 <b>${fmt(state.budget - exp)}</b>` : `⚠️ 本月超支 <b>${fmt(exp - state.budget)}</b>`)
       : `💰 本月結餘 <b>${inc - out < 0 ? "-" : ""}${fmt(Math.abs(inc - out))}</b>`;
-    $("manorCap").innerHTML = `<button class="money" data-go="home">${money}</button><span class="sav">🌾 ${m.saved ? fmt(m.saved) : "糧倉未蓋"}</span><span>🏮 ${m.lanterns}</span>`;
+    const w = wxNow(), [wi, wt] = WX_TEXT[m.wx];
+    $("manorCap").innerHTML = `<button class="money" data-go="home">${money}</button><span class="sav">🌾 ${m.saved ? fmt(m.saved) : "糧倉未蓋"}</span><span>🏮 ${m.lanterns}</span>`
+      + `<button data-go="wx">${w.real ? `${wi} ${w.temp != null ? Math.round(w.temp) + "°" : wt}` : "📍 天氣"}</button>`;
+    // 天氣特效、小錢的傘和小烏雲（超支時跟著小錢）
+    $("wx").className = "wx" + ({ rain: " wx-rain", storm: " wx-storm", snow: " wx-snow", fog: " wx-fog" }[m.wx] || "");
+    const egg = stageOf(g.lvl) === 0, umb = !egg && (m.wx === "rain" || m.wx === "storm"), cl = !egg && m.over;
+    $("petUmb").hidden = !umb; $("petCloud").hidden = !cl;
+    $("petStage").classList.toggle("hat", umb || cl); $("petStage").classList.toggle("cloud", cl);
+    const L = state.loc;
+    $("locNote").textContent = L ? `📍 莊園天氣：${L.name}${w.real ? `・${wt}${w.temp != null ? " " + Math.round(w.temp) + "°C" : ""}` : "（查詢中…）"}` : "📍 莊園天氣：還沒設定地區（目前照季節顯示）";
+    $("locBtn").textContent = L ? "更改" : "設定地區";
   }
-  $("manorCap").onclick = e => { if (e.target.closest("[data-go=home]")) openHome(); };
+  $("manorCap").onclick = e => {
+    const b = e.target.closest("[data-go]"); if (!b) return;
+    if (b.dataset.go === "home") return openHome();
+    const w = wxNow();
+    if (!state.loc) return openLoc();
+    toast(w.real ? `${WX_TEXT[w.kind][0]} ${state.loc.name}：${WX_TEXT[w.kind][1]}${w.temp != null ? "，" + Math.round(w.temp) + "°C" : ""}` : `正在查 ${state.loc.name} 的天氣…`, 2600);
+    fetchWx();
+  };
+
+  // ---------- 莊園天氣地區 ----------
+  const TW_CITIES = [["台北市",25.04,121.56],["新北市",25.01,121.47],["基隆市",25.13,121.74],["桃園市",24.99,121.3],["新竹市",24.8,120.97],["新竹縣",24.84,121.01],
+    ["苗栗縣",24.56,120.82],["台中市",24.15,120.67],["彰化縣",24.08,120.54],["南投縣",23.91,120.68],["雲林縣",23.71,120.43],["嘉義市",23.48,120.45],["嘉義縣",23.46,120.25],
+    ["台南市",22.99,120.21],["高雄市",22.63,120.3],["屏東縣",22.67,120.49],["宜蘭縣",24.75,121.75],["花蓮縣",23.99,121.6],["台東縣",22.76,121.14],["澎湖縣",23.57,119.58],
+    ["金門縣",24.43,118.32],["連江縣",26.16,119.95]];
+  let locPick = null;
+  function paintLocPick(){
+    $("locPick").textContent = locPick ? `已選：座標 ${locPick.lat.toFixed(2)}, ${locPick.lon.toFixed(2)}` : "";
+    document.querySelectorAll("#locQuick button,#locResults button").forEach(b => b.classList.remove("on"));
+  }
+  function choose(name, lat, lon, btn){
+    locPick = { lat, lon }; $("locName").value = name; $("locErr").textContent = ""; paintLocPick();
+    if (btn) btn.classList.add("on");
+  }
+  function openLoc(){
+    if (readOnly) { toast("目前為唯讀"); return; }
+    locPick = state.loc ? { lat: state.loc.lat, lon: state.loc.lon } : null;
+    $("locName").value = state.loc ? state.loc.name : ""; $("locQ").value = ""; $("locResults").innerHTML = ""; $("locErr").textContent = "";
+    $("locQuick").innerHTML = TW_CITIES.map(([n], i) => `<button data-i="${i}">${n}</button>`).join("");
+    paintLocPick(); openSheet($("locSheet"));
+  }
+  $("locBtn").onclick = openLoc;
+  $("locQuick").onclick = e => { const b = e.target.closest("button"); if (!b) return; const [n, la, lo] = TW_CITIES[b.dataset.i]; choose(n, la, lo, b); };
+  $("locGps").onclick = () => {
+    if (!navigator.geolocation) { $("locErr").textContent = "這台裝置不支援定位，請改用搜尋或選縣市"; return; }
+    $("locGps").textContent = "📍 定位中…";
+    navigator.geolocation.getCurrentPosition(p => {
+      $("locGps").textContent = "📍 用我現在的位置";
+      choose($("locName").value.trim() || "我的位置", p.coords.latitude, p.coords.longitude);
+      $("locErr").textContent = ""; $("locName").focus();
+      $("locPick").textContent += "。可以在下面幫它取個名字，例如「新北市板橋區」";
+    }, () => { $("locGps").textContent = "📍 用我現在的位置"; $("locErr").textContent = "沒辦法取得位置（可能沒有允許定位），請改用搜尋或選縣市"; },
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 6e5 });
+  };
+  async function searchLoc(){
+    const q = $("locQ").value.trim(); if (!q) return;
+    $("locResults").innerHTML = `<span class="lead">搜尋中…</span>`;
+    try {
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=zh&format=json`);
+      const j = await r.json(), list = (j && j.results) || [];
+      $("locResults").innerHTML = list.length ? list.map((x, i) => `<button data-i="${i}">${esc([x.admin2, x.name].filter((v, k, a) => v && a.indexOf(v) === k).join(" ") || x.name)}${x.country_code && x.country_code !== "TW" ? `（${esc(x.country || x.country_code)}）` : ""}</button>`).join("")
+        : `<span class="lead">找不到「${esc(q)}」，可以試試用目前位置或選縣市</span>`;
+      $("locResults").onclick = e => { const b = e.target.closest("button"); if (!b) return; const x = list[b.dataset.i];
+        choose([x.admin1, x.admin2, x.name].filter((v, k, a) => v && a.indexOf(v) === k).slice(-2).join("").slice(0, 20), x.latitude, x.longitude, b); };
+    } catch { $("locResults").innerHTML = `<span class="lead">搜尋失敗（可能沒有網路），可以改用目前位置或選縣市</span>`; }
+  }
+  $("locSearch").onclick = searchLoc;
+  $("locQ").addEventListener("keydown", e => { if (e.key === "Enter") searchLoc(); });
+  $("locSave").onclick = () => {
+    if (!locPick) { $("locErr").textContent = "先用目前位置、搜尋或選一個縣市"; return; }
+    state.loc = cleanLoc({ name: $("locName").value.trim(), ...locPick });
+    putSettings(); closeSheet(); toast(`📍 莊園天氣改成「${state.loc.name}」`); fetchWx(true);
+  };
+  $("locOff").onclick = () => { state.loc = null; putSettings(); closeSheet(); toast("已取消綁定，莊園照季節顯示"); };
   $("manorSvg").onclick = e => {
     const p = e.target.closest("[data-plot]"); if (!p || !manorNow) return;
     if (p.dataset.plot === "house") { openHome(); return; }
@@ -2010,7 +2190,8 @@
       if (g1.lvl > g0.lvl) setTimeout(() => celebrate(g1, stageOf(g1.lvl) > stageOf(g0.lvl)), 700);
     }, 400);
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { render(); afterLoad(); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { render(); afterLoad(); fetchWx(); } });
+  setInterval(() => { if (!document.hidden) { fetchWx(); render(); } }, 10 * 6e4);   // 開著的時候每 10 分鐘更新天色
 
   // ---------- 月底結餘詢問 ----------
   // 打開 App 時，如果上個月結餘是正的、而且還沒問過，就問要不要存進糧倉（一定要按確認才記）
@@ -2141,6 +2322,7 @@
   render();
   afterLoad();
   setTimeout(() => { sayRandom(computeGame()); wander(); }, 1200);
+  fetchWx();
 
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
