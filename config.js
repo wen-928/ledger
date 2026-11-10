@@ -6,10 +6,10 @@
 //          把引號裡的空白換成你的值。其他地方不用改。
 // ─────────────────────────────────────────────────────────────
 window.LEDGER_FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyBo7llVqm6sxCTH-XB-H99TWtAhYtdUspw",
+  authDomain: "ledger-6aaab.firebaseapp.com",
+  projectId: "ledger-6aaab",
+  storageBucket: "ledger-6aaab.firebasestorage.app",
+  messagingSenderId: "547241742818",
+  appId: "1:547241742818:web:1937a09e007d4f645069bb"
 };
