@@ -239,7 +239,7 @@
   @keyframes smoke{0%{opacity:0;transform:translate(0,0) scale(.6)}15%{opacity:.75}100%{opacity:0;transform:translate(10px,-38px) scale(2.3)}}
   .drive{animation:drive 18s linear infinite}
   .drive.train{animation-duration:12s}
-  @keyframes drive{from{transform:translateX(-140px)}to{transform:translateX(2500px)}}
+  @keyframes drive{from{transform:translateX(-140px)}to{transform:translateX(2900px)}}
   @media (prefers-reduced-motion: reduce){ .drive{animation:none!important;transform:translateX(860px)} }
   .twinkle{animation:twinkle 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
   @keyframes twinkle{0%,100%{opacity:.3;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
@@ -267,6 +267,11 @@
   .beast .bsay{position:absolute;bottom:92%;left:50%;transform:translateX(-50%);background:var(--card);color:var(--ink);font-size:11px;border-radius:10px;padding:2px 7px;white-space:nowrap;box-shadow:var(--shadow);animation:crow 6s ease-in-out infinite}
   @keyframes crow{0%,55%,100%{opacity:0}62%,90%{opacity:1}}
   .beast.far{opacity:.85;filter:saturate(.8)}
+  .beast .eggw{animation:eggwob 3.2s ease-in-out infinite;animation-delay:var(--wd,0s);transform-box:fill-box;transform-origin:50% 100%}
+  @keyframes eggwob{0%,64%,100%{transform:rotate(0)}70%{transform:rotate(-8deg)}78%{transform:rotate(7deg)}86%{transform:rotate(-4deg)}92%{transform:rotate(2deg)}}
+  .beast .bsay.talk{animation:talkin .25s ease-out both;z-index:3;font-size:12px}
+  @keyframes talkin{from{opacity:0;transform:translate(-50%,4px) scale(.85)}to{opacity:1;transform:translateX(-50%)}}
+  .fsay{position:absolute;z-index:3;transform:translate(-50%,-100%);background:var(--card);color:var(--ink);font-size:12px;border-radius:10px;padding:2px 7px;white-space:nowrap;box-shadow:var(--shadow);pointer-events:none}
   .beast .nbang{position:absolute;right:105%;bottom:30%;font-size:14px;font-weight:800;color:#d8352a;white-space:nowrap;text-shadow:0 0 4px #fff,0 0 2px #fff;opacity:0;animation:nbang 9s linear infinite}
   .beast.nianfest .bflip{animation:nianrun 9s linear infinite}
   @keyframes nianrun{0%{transform:translateX(700%) scaleX(-1);opacity:0}6%{opacity:1}30%,40%{transform:translateX(0) scaleX(-1)}43%{transform:translate(10%,-35%) scaleX(1)}47%{transform:translate(40%,0) scaleX(1)}72%{transform:translateX(800%) scaleX(1);opacity:1}76%,100%{transform:translateX(800%) scaleX(1);opacity:0}}
@@ -282,7 +287,7 @@
   .beast.orbit svg{animation:kunbob 2.4s ease-in-out infinite}
   .lion{animation:lion .7s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
   @keyframes lion{0%,100%{transform:rotate(-4deg) translateY(0)}50%{transform:rotate(4deg) translateY(-3px)}}
-  @media (prefers-reduced-motion: reduce){ .lion,.beast,.beast svg,.beast .bflip,.beast .bsay,.beast .nbang{animation:none!important} .beast .bsay,.beast .nbang{opacity:1} .beast.kunfly{transform:translateX(calc(var(--dist) * .3))} }
+  @media (prefers-reduced-motion: reduce){ .lion,.beast,.beast svg,.beast .bflip,.beast .bsay,.beast .nbang,.beast .eggw{animation:none!important} .beast .bsay,.beast .nbang{opacity:1} .beast.kunfly{transform:translateX(calc(var(--dist) * .3))} }
   .bs-temple{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.5}
   .bs-row{display:flex;gap:10px;padding:10px 0;border-top:1px solid rgba(0,0,0,.07)}
   .bs-row.off{opacity:.55}
@@ -1228,7 +1233,9 @@
   // 所有等級都從記帳紀錄即時算出來，不另外存；建築不會降級。
   const lvBy = (v, th) => th.filter(t => v >= t).length;
   const M_TH = { house: [7, 16, 21], field: [30, 90, 180, 365], pond: [7, 21, 60, 100], granary: [50000, 100000, 300000],
-    food: [10, 30, 60, 100, 150, 220, 300, 400, 550, 730], shop: [3, 10, 20, 35, 55, 80], station: [5, 15, 30, 50, 80, 120, 170, 240] };
+    food: [10, 30, 60, 100, 150, 220, 300, 400, 550, 730], shop: [3, 10, 20, 35, 55, 80], station: [5, 15, 30, 50, 80, 120, 170, 240], market: [3, 6, 9, 12], school: [1, 3, 6, 12] };
+  const MARKET_NAMES = ["一個攤位", "三個攤位", "熱鬧市集", "夜市"];
+  const SCHOOL_NAMES = ["私塾", "學堂", "書院", "藏書閣"];
   const SHOP_NAMES = ["路邊地攤", "柑仔店", "雜貨店", "雜貨店＋理髮廳", "理髮廳＋洗衣店", "小鎮商店街"];
   const STATION_NAMES = ["腳踏車架", "機車行", "公車候車亭", "加油站", "客運站", "鐵道小站", "火車站", "高鐵站"];
   const FOOD_NAMES = ["路邊一口灶", "小吃推車", "麵攤", "小吃店", "自助餐", "兩層樓食堂", "餐館", "三層酒樓", "辦桌酒樓", "御膳樓"];
@@ -1247,7 +1254,7 @@
     const saved = entries.filter(e => e.type === "saving").reduce((a, e) => a + e.amount, 0);
     const d = sceneNow(), mo = d.getMonth() + 1, h = d.getHours();
     const ym = `${d.getFullYear()}-${pad(mo)}`;
-    return {
+    const r = {
       house: 1 + lvBy(g.lvl, M_TH.house), food: lvBy(entries.filter(e => e.type === "expense" && e.cat === "餐飲").length, M_TH.food), field: lvBy(g.days, M_TH.field), pond: lvBy(g.best, M_TH.pond),
       granary: saved > 0 ? 1 + lvBy(saved, M_TH.granary) : 0, lanterns: g.okMonths, saved, g,
       foodN: entries.filter(e => e.type === "expense" && e.cat === "餐飲").length, foodSave: foodSaving(entries),
@@ -1259,8 +1266,13 @@
       over: state.budget > 0 && g.monthExp > state.budget,
       season: mo >= 3 && mo <= 5 ? "spring" : mo >= 6 && mo <= 8 ? "summer" : mo >= 9 && mo <= 11 ? "autumn" : "winter",
       time: dayPart(d), wx: wxNow().kind, hour: h, fest: festOf(d),
-      ...(() => { const b = beastState(g, entries, saved); return { beasts: b.list, grown: b.grown, temple: b.temple }; })()
+      ...(() => { const b = beastState(g, entries, saved); return { beasts: b.list, grown: b.grown, temple: b.temple }; })(),
+      ...(() => { const incN = new Set(entries.filter(e => e.type === "income" && e.amount > 0 && e.date).map(e => e.date.slice(0, 7))).size, seenN = state.seen.length;
+        return { marketN: incN, market: lvBy(incN, M_TH.market), schoolN: seenN, school: lvBy(seenN, M_TH.school) }; })()
     };
+    // 學堂蓋好後，白澤（連同蛋）搬進學堂
+    if (r.school) { const bz = r.beasts.find(b => b.id === "baize"); bz.home = [2082, 2106]; bz.where = "學堂"; }
+    return r;
   }
 
   // ---------- 真實天氣（Open-Meteo，免費、不用帳號） ----------
@@ -1312,11 +1324,11 @@
     } catch {}   // 沒網路就沿用上次的天氣
     wxBusy = false;
   }
-  const MW = 2380, MH = 200, GY = 178, BOT = 72;
+  const MW = 2780, MH = 200, GY = 178, BOT = 72;
   // 依螢幕高度決定放大倍率；多出來的高度補成上方天空、下方草地
   const dims = () => { const h = $("stage").clientHeight || innerHeight; const k = Math.max(1.15, Math.min(1.8, h / 620));
     const VH = Math.ceil(h / k); return { k, VH, TOP: Math.max(0, VH - MH - BOT) }; };
-  const PLOT = { gate: [0, 130], house: [130, 240], food: [370, 240], shop: [610, 220], station: [830, 240], field: [1070, 240], pond: [1310, 190], granary: [1500, 180], frontier: [1680, 200], bamboo: [1880, 120], temple: [2000, 260], hill: [2260, 120] };
+  const PLOT = { gate: [0, 130], house: [130, 240], food: [370, 240], shop: [610, 220], station: [830, 240], field: [1070, 240], pond: [1310, 190], granary: [1500, 180], market: [1680, 220], school: [1900, 220], herb: [2120, 160], bamboo: [2280, 120], temple: [2400, 260], hill: [2660, 120] };
   const SEASON = {
     spring: { ground: "#a8d67c", hill: "#8cc56b", far: "#c3e2ae", tree: "#7cbf5a", road: "#ead6a8" },
     summer: { ground: "#8cc366", hill: "#67ac4b", far: "#a9d690", tree: "#4f9a3a", road: "#ead6a8" },
@@ -1562,28 +1574,28 @@
   const stageOfP = p => p <= 0 ? 0 : p < 1 / 3 ? 1 : p < 2 / 3 ? 2 : p < 1 ? 3 : 4;
   const TEMPLE_TH = [1, 3, 6, 10, 15, 20];
   const TEMPLE_NAMES = ["土地公小祠", "小廟落成", "香火漸旺", "兩進大廟", "龍柱剪黏", "香客排隊的大廟", "香火鼎盛"];
-  const TEMPLE_FRONT = [2068, 2192];
+  const TEMPLE_FRONT = [2468, 2592];
   const BEASTS = [
     { id: "phoenix", em: "🔥", name: "鳳凰", where: "就是小錢自己" },
     { id: "turtle", em: "🐢", name: "神龜", where: "荷花池邊的石頭", home: [1322, 1362], foot: 172, size: 30, speed: 7, egg: ["#e6f0d8", "#5fae6e"] },
-    { id: "kirin", em: "🦌", name: "麒麟", where: "竹林旁", home: [1890, 1990], foot: GY, size: 46, speed: 28, egg: ["#e3f4ef", "#5fb8a8"] },
+    { id: "kirin", em: "🦌", name: "麒麟", where: "竹林旁", home: [2290, 2390], foot: GY, size: 46, speed: 28, egg: ["#e3f4ef", "#5fb8a8"] },
     { id: "pixiu", em: "💰", name: "貔貅", where: "糧倉金庫門口", home: [1604, 1672], foot: GY, size: 40, speed: 22, egg: ["#fff3cf", "#e0a92a"] },
-    { id: "fox", em: "🦊", name: "九尾狐", where: "竹林外的小山坡", home: [2282, 2350], foot: 158, size: 42, speed: 34, egg: ["#fbf6ef", "#f0b26a"] },
+    { id: "fox", em: "🦊", name: "九尾狐", where: "竹林外的小山坡", home: [2682, 2750], foot: 158, size: 42, speed: 34, egg: ["#fbf6ef", "#f0b26a"] },
     { id: "jingwei", em: "🐦", name: "精衛", where: "荷花池邊", home: [1440, 1494], foot: 176, size: 26, speed: 40, egg: ["#eef0f4", "#f29bbd"] },
     { id: "toad", em: "🐸", name: "三腳金蟾", where: "糧倉旁的大銅錢上", home: [1516, 1516], foot: GY, size: 30, still: true, egg: ["#fff1c4", "#e9b93a"] },
     { id: "taotie", em: "🍖", name: "饕餮", where: "小錢食堂後廚", home: [592, 592], foot: GY, size: 36, still: true, egg: ["#efe8f8", "#8a6bbf"] },
     { id: "baize", em: "📜", name: "白澤", where: "大宅旁（學堂蓋好會搬過去）", home: [326, 362], foot: GY, size: 40, speed: 14, egg: ["#f4f6fb", "#6a8fd0"] },
-    { id: "suanni", em: "🏮", name: "狻猊", where: "神獸殿香爐頂上", home: [2164, 2164], foot: GY - 18, size: 24, still: true, noShadow: true, egg: ["#fff0d6", "#2f8f83"], eggAt: [2190, GY] },
-    { id: "nian", em: "🧨", name: "年獸", where: "遠山的霧裡（春節廟會會跑到大門口）", home: [1730, 1830], foot: 112, size: 24, speed: 6, far: true, egg: ["#ffe1d6", "#d8352a"] },
+    { id: "suanni", em: "🏮", name: "狻猊", where: "神獸殿香爐頂上", home: [2564, 2564], foot: GY - 18, size: 24, still: true, noShadow: true, egg: ["#fff0d6", "#2f8f83"], eggAt: [2592, GY] },
+    { id: "nian", em: "🧨", name: "年獸", where: "藥草園預定地上方的霧裡（春節廟會會跑到大門口）", home: [2150, 2250], foot: 112, size: 24, speed: 6, far: true, egg: ["#ffe1d6", "#d8352a"] },
     { id: "tiger", em: "🐯", name: "白虎", where: "莊園大門（鎮守西方）", home: [100, 122], foot: GY, size: 40, speed: 10, egg: ["#f8f8f4", "#3a3a40"] },
     { id: "koi", em: "🐟", name: "錦鯉", where: "荷花池裡", home: [1352, 1458], foot: 167, size: 26, speed: 16, noShadow: true, egg: ["#fff4ec", "#f07c2c"], eggAt: [1374, 174] },
-    { id: "kun", em: "🐋", name: "鯤鵬", where: "莊園上空（偶爾飛過）", home: [1712, 1712], foot: 40, size: 56, fly: true, noShadow: true, egg: ["#e4f0fb", "#3f78c0"], eggAt: [1712, GY] },
+    { id: "kun", em: "🐋", name: "鯤鵬", where: "莊園上空（偶爾飛過）", home: [2150, 2150], foot: 40, size: 56, fly: true, noShadow: true, egg: ["#e4f0fb", "#3f78c0"], eggAt: [2146, GY] },
     { id: "xiezhi", em: "🐐", name: "獬豸", where: "大宅門口", home: [222, 278], foot: GY, size: 38, speed: 10, egg: ["#e8eef0", "#2c5f6b"] },
     { id: "rabbit", em: "🐰", name: "玉兔", where: "月亮上（只在晚上出現）", home: [66, 66], foot: 27, size: 24, still: true, night: true, egg: ["#ffffff", "#f6b6c8"] },
     { id: "rooster", em: "🐓", name: "金雞", where: "稻田稻草人旁", home: [1204, 1244], foot: GY, size: 30, speed: 26, egg: ["#fff4dc", "#e2302a"] },
-    { id: "crane", em: "🦢", name: "仙鶴", where: "竹林邊的水池", home: [1846, 1870], foot: GY - 1, size: 40, speed: 8, egg: ["#ffffff", "#e2302a"] },
+    { id: "crane", em: "🦢", name: "仙鶴", where: "竹林邊的水池", home: [2246, 2270], foot: GY - 1, size: 40, speed: 8, egg: ["#ffffff", "#e2302a"] },
     { id: "tianma", em: "🐎", name: "天馬", where: "小錢驛站（尖峰時間跟公車賽跑）", home: [880, 1040], foot: GY, size: 44, speed: 36, egg: ["#f6f8fc", "#9bb8e8"] },
-    { id: "dragon", em: "🐉", name: "神龍", where: "神獸殿上空的雲（繞廟飛）", home: [2130, 2130], foot: GY - 100, size: 58, fly: true, noShadow: true, egg: ["#e3f6ea", "#2f9a5a"], eggAt: [2244, GY] }
+    { id: "dragon", em: "🐉", name: "神龍", where: "神獸殿上空的雲（繞廟飛）", home: [2530, 2530], foot: GY - 100, size: 58, fly: true, noShadow: true, egg: ["#e3f6ea", "#2f9a5a"], eggAt: [2644, GY] }
   ];
   const FESTS = ["除夕", "春節", "清明", "端午", "中秋"];
   const ymAdd = (ym, n) => { let [y, m] = ym.split("-").map(Number); m += n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return `${y}-${pad(m)}`; };
@@ -1816,14 +1828,96 @@
       ${bEye(44, 21, 2)}<path d="M48 22 l6 1.6 l-6 2Z" fill="#f08a24"/>${a ? `<path d="M30 12 l1.2 -3.5 l1.2 3.5 l3.5 1.2 l-3.5 1.2 l-1.2 3.5 l-1.2 -3.5 l-3.5 -1.2Z" fill="#fff3b0" class="twinkle"/>` : ""}`
   };
   function beastSVG(b, st){
-    if (st === 1) { const [c1, c2] = b.egg;
-      return `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="56" rx="17" ry="4.5" fill="#b07a42"/><path d="M14 54 q8 -4 16 0 q8 -4 16 0" stroke="#8b5a2b" stroke-width="1.6" fill="none"/>
-        <ellipse cx="30" cy="40" rx="12.5" ry="15.5" fill="${c1}" stroke="${c2}" stroke-width="1.4"/><ellipse cx="25" cy="34" rx="2.6" ry="3.4" fill="${c2}" opacity=".75"/>
-        <ellipse cx="35" cy="45" rx="3.4" ry="2.6" fill="${c2}" opacity=".75"/><ellipse cx="34" cy="32" rx="1.7" ry="2.1" fill="${c2}" opacity=".75"/>
-        <path d="M22 22 l1.3 -3.6 l1.3 3.6 l3.6 1.3 l-3.6 1.3 l-1.3 3.6 l-1.3 -3.6 l-3.6 -1.3Z" fill="#fff3b0" class="twinkle"/></svg>`; }
+    if (st === 1) { const [c1, c2] = b.egg, p = b.p || 0;   // 越接近 1/3（快孵化）裂痕越多
+      const crack = (p >= .22 ? `<path d="M15 33 l4 3.5 l3.5 -4 l4 4.5 l3.5 -3.5 l4 4 l3.5 -3 l4 3" stroke="#4a3a30" stroke-width="1.3" fill="none" stroke-linejoin="round"/>` : "")
+        + (p >= .29 ? `<path d="M31 15 l-2.4 5 l3.2 3 l-2.6 4.5 M37 44 l4 2.5 l1.5 4" stroke="#4a3a30" stroke-width="1.2" fill="none" stroke-linejoin="round"/>` : "");
+      return `<svg viewBox="0 0 60 60" overflow="visible"><ellipse cx="30" cy="56.5" rx="21" ry="4.6" fill="#b07a42"/><path d="M10 55 q10 -5 20 0 q10 -5 20 0" stroke="#8b5a2b" stroke-width="1.6" fill="none"/>
+        <g class="eggw"><ellipse cx="30" cy="35" rx="16" ry="20.5" fill="${c1}" stroke="${c2}" stroke-width="1.5"/><ellipse cx="23.5" cy="27" rx="3.4" ry="4.4" fill="${c2}" opacity=".75"/>
+        <ellipse cx="36.5" cy="42" rx="4.4" ry="3.4" fill="${c2}" opacity=".75"/><ellipse cx="35.5" cy="25" rx="2.2" ry="2.7" fill="${c2}" opacity=".75"/><ellipse cx="22" cy="44" rx="2" ry="1.6" fill="${c2}" opacity=".6"/>${crack}</g>
+        <path d="M17 13 l1.3 -3.6 l1.3 3.6 l3.6 1.3 l-3.6 1.3 l-1.3 3.6 l-1.3 -3.6 l-3.6 -1.3Z" fill="#fff3b0" class="twinkle"/></svg>`; }
     const sc = [0, 0, .62, .82, 1][st];
     return `<svg viewBox="0 0 60 60" overflow="visible">${b.id === "rabbit" || b.noShadow ? "" : `<ellipse cx="30" cy="57.5" rx="${(17 * sc).toFixed(1)}" ry="2.3" fill="rgba(0,0,0,.14)"/>`}
       <g transform="translate(30 58) scale(${sc}) translate(-30 -58)">${BEAST_ART[b.id](st === 4, b.tails)}</g></svg>`;
+  }
+
+  // ----- 市集（有記收入的月份數）4 種樣子 -----
+  function marketSVG(lv, x0, w, lit, night){
+    const k = kit(lit, false);
+    const goods = (cx, kind) => {
+      if (kind === "veg") return [["#e2445c", -14], ["#f0c94a", -6], ["#79c24f", 2], ["#f29a38", 10], ["#79c24f", 17]].map(([c, d], i) => `<circle cx="${cx + d}" cy="${GY - 22 - (i % 2) * 2}" r="3.6" fill="${c}"/>`).join("");
+      if (kind === "cloth") return [["#7fb7d8", -15], ["#f6b6c8", -5], ["#f0c94a", 5], ["#9b7be0", 15]].map(([c, d]) => `<rect x="${cx + d - 4}" y="${GY - 26}" width="8" height="7" rx="1" fill="${c}"/>`).join("");
+      if (kind === "fish") return [-12, 0, 12].map(d => `<ellipse cx="${cx + d}" cy="${GY - 22}" rx="5" ry="2.4" fill="#9fb4c4"/><path d="M${cx + d + 4} ${GY - 22} l4 -3 v6Z" fill="#9fb4c4"/>`).join("");
+      if (kind === "snack") return `<ellipse cx="${cx - 6}" cy="${GY - 22}" rx="11" ry="4" fill="#6b6b70"/><rect x="${cx - 17}" y="${GY - 23}" width="22" height="3" fill="#8a8a90"/><rect x="${cx + 8}" y="${GY - 26}" width="10" height="6" rx="1" fill="#f6efe0"/>`;
+      if (kind === "grill") return `<rect x="${cx - 16}" y="${GY - 23}" width="26" height="4" fill="#3a3a3a"/>` + [-12, -6, 0, 6].map(d => `<rect x="${cx + d - 1}" y="${GY - 28}" width="3" height="7" rx="1.5" fill="#c8432f"/>`).join("");
+      return "";
+    };
+    const stall = (cx, c1, c2, kind, label, sw = 54) => {
+      k.s += `<rect x="${cx - sw / 2 + 3}" y="${GY - 46}" width="2.4" height="46" fill="#7a5530"/><rect x="${cx + sw / 2 - 5.4}" y="${GY - 46}" width="2.4" height="46" fill="#7a5530"/>
+        <rect x="${cx - sw / 2 + 2}" y="${GY - 18}" width="${sw - 4}" height="18" fill="#c98a4b"/><rect x="${cx - sw / 2}" y="${GY - 20}" width="${sw}" height="3" fill="#a8703a"/>${goods(cx, kind)}`
+        + k.awning(cx - sw / 2 - 3, GY - 50, sw + 6, c1, c2);
+      if (label) k.sign(cx, GY - 58, label.length * 11 + 10, label, "#b7382b");
+      if (kind === "snack" || kind === "grill") k.s += `<g class="smoke">${[0, 1, 2].map(i => `<circle cx="${cx - 6 + i * 3}" cy="${GY - 30}" r="${2.4 + i % 2}" fill="#f1ede6" style="animation-delay:${i * 1.1}s"/>`).join("")}</g>`;
+    };
+    const cx = x0 + w / 2;
+    if (lv === 1) { stall(cx, "#2f8f83", "#f6f1e6", "veg", "蔬果"); k.s += k.bird(cx + 44, GY - 7, "#f7a537"); }
+    else {
+      const xs = [x0 + 40, x0 + 110, x0 + 180];
+      const kinds = lv >= 4 ? [["#2f8f83", "veg", "蔬果"], ["#e2445c", "snack", "小吃"], ["#f29a38", "grill", "香腸"]]
+        : [["#2f8f83", "veg", "蔬果"], ["#e2445c", "cloth", "布莊"], ["#4a7fd0", "fish", "魚貨"]];
+      kinds.forEach(([c, kind, lab], i) => stall(xs[i], c, "#f6f1e6", kind, lv >= 3 || i === 1 ? lab : ""));
+      if (lv >= 3) {   // 熱鬧：入口旗子＋小鳥顧客
+        k.s += `<rect x="${x0 + 4}" y="${GY - 72}" width="2.4" height="72" fill="#7a5530"/><path d="M${x0 + 6.4} ${GY - 72} l18 5 l-18 6Z" fill="#e2445c"/>`;
+        [[x0 + 22, "#9bd2f0"], [x0 + 74, "#ffd858"], [x0 + 92, "#f6b6c8"], [x0 + 144, "#bfe3a0"], [x0 + 160, "#ffd858"], [x0 + 210, "#9bd2f0"]].forEach(([x, c], i) => k.s += `<g transform="translate(${x} ${GY - 7}) scale(${i % 2 ? -1 : 1} 1) translate(${-x} ${-(GY - 7)})">${k.bird(x, GY - 7, c)}</g>`);
+      }
+    }
+    if (lv >= 4) {   // 夜市：燈泡串，晚上才亮
+      const y0 = GY - 86, n = 13; let rope = `M${x0 + 6} ${y0}`;
+      rope += ` Q${cx} ${y0 + 22} ${x0 + w - 6} ${y0}`;
+      k.s += `<path d="${rope}" stroke="#4a3a2a" stroke-width="1.2" fill="none"/>`;
+      for (let i = 0; i < n; i++) { const t = (i + .5) / n, x = (1 - t) * (1 - t) * (x0 + 6) + 2 * t * (1 - t) * cx + t * t * (x0 + w - 6), y = (1 - t) * (1 - t) * y0 + 2 * t * (1 - t) * (y0 + 22) + t * t * y0 + 3;
+        const c = ["#ffd75e", "#ff9f7a", "#9fe0ff", "#c6f08a"][i % 4];
+        k.s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="${night ? c : "#f2ecd8"}" stroke="#4a3a2a" stroke-width=".5"/>`;
+        if (night) k.l += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="${c}" opacity=".3"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="${c}"/>`; }
+      k.sign(cx, y0 - 8, 44, "夜市", "#2b2b6b", "#ffd75e");
+    }
+    return { s: k.s, l: k.l };
+  }
+
+  // ----- 學堂（看過月報表的月份數）4 種樣子 -----
+  function schoolSVG(lv, x0, lit, winter){
+    const k = kit(lit, false);
+    const hall = (L, W, H, name, wall = "#f3ecdc") => {
+      k.s += `<rect x="${L - 4}" y="${GY - 5}" width="${W + 8}" height="5" fill="#b9b2a6"/><rect x="${L}" y="${GY - H}" width="${W}" height="${H - 5}" fill="${wall}"/>
+        <rect x="${L + 3}" y="${GY - H}" width="4" height="${H - 5}" fill="#b7382b"/><rect x="${L + W - 7}" y="${GY - H}" width="4" height="${H - 5}" fill="#b7382b"/>
+        <rect x="${L + W / 2 - 9}" y="${GY - 30}" width="18" height="25" fill="#7a4a24"/><rect x="${L + W / 2 - .5}" y="${GY - 30}" width="1" height="25" fill="#4a2a14"/>` + k.eave(L + W / 2, GY - H + 1, W + 8);
+      if (winter) k.s += snowCap(`${L - 4},${GY - H - 10} ${L + W + 4},${GY - H - 10}`);
+      k.win(L + 12, GY - 28, 14, 12); k.win(L + W - 26, GY - 28, 14, 12);
+      k.sign(L + W / 2, GY - H + 10, name.length * 11 + 12, name, "#2b2b6b", "#f6d77a");
+    };
+    const desk = (x, c) => k.s += `<rect x="${x - 9}" y="${GY - 9}" width="18" height="3" fill="#8a5a2b"/><rect x="${x - 7}" y="${GY - 6}" width="2" height="6" fill="#8a5a2b"/><rect x="${x + 5}" y="${GY - 6}" width="2" height="6" fill="#8a5a2b"/><rect x="${x - 4}" y="${GY - 12}" width="8" height="3" fill="#f6efe0"/>` + k.bird(x - 13, GY - 7, c);
+    if (lv === 1) { hall(x0 + 60, 80, 42, "私塾", "#efe2c4"); desk(x0 + 166, "#ffd858"); }
+    else if (lv === 2) { hall(x0 + 40, 116, 50, "學堂"); desk(x0 + 30, "#9bd2f0"); desk(x0 + 176, "#ffd858");
+      k.s += `<rect x="${x0 + 168}" y="${GY - 60}" width="2.4" height="60" fill="#7a5530"/><path d="M${x0 + 160} ${GY - 60} h18" stroke="#7a5530" stroke-width="2"/><path d="M${x0 + 165} ${GY - 58} q4 10 8 0Z" fill="#d9a400"/>`; }
+    else {
+      hall(x0 + 66, 106, 56, "書院");
+      if (lv === 3) { k.s += `<rect x="${x0 + 16}" y="${GY - 36}" width="46" height="36" fill="#efe2c4"/>` + k.eave(x0 + 39, GY - 35, 50); k.win(x0 + 32, GY - 26, 14, 12);
+        if (winter) k.s += snowCap(`${x0 + 12},${GY - 46} ${x0 + 66},${GY - 46}`); }
+      else {   // 藏書閣：兩層樓閣，書架看得到
+        const L = x0 + 8, W = 54;
+        k.s += `<rect x="${L}" y="${GY - 44}" width="${W}" height="44" fill="#c8432f"/><rect x="${L + 6}" y="${GY - 36}" width="${W - 12}" height="30" fill="#5d3f26"/>`
+          + [0, 1, 2].map(r => Array.from({ length: 7 }, (_, i) => `<rect x="${L + 9 + i * 5.6}" y="${GY - 34 + r * 10}" width="4" height="8" fill="${["#e2445c", "#f0c94a", "#2f8f83", "#7fb7d8", "#f6efe0"][(i + r) % 5]}"/>`).join("")).join("")
+          + k.eave(L + W / 2, GY - 43, W + 4)
+          + `<rect x="${L + 6}" y="${GY - 84}" width="${W - 12}" height="30" fill="#c8432f"/>` + k.eave(L + W / 2, GY - 83, W - 4)
+          + `<path d="M${L + W / 2} ${GY - 96} v-10" stroke="#d9a400" stroke-width="2.4"/><circle cx="${L + W / 2}" cy="${GY - 107}" r="3" fill="#f2c230"/>`;
+        k.win(L + 12, GY - 82, 10, 8); k.win(L + W - 22, GY - 82, 10, 8);
+        k.sign(L + W / 2, GY - 64, 46, "藏書閣", "#2b2b6b", "#f6d77a");
+        if (winter) k.s += snowCap(`${L - 2},${GY - 54} ${L + W + 2},${GY - 54}`) + snowCap(`${L + 4},${GY - 94} ${L + W - 4},${GY - 94}`);
+      }
+      // 老松樹＋學生
+      k.s += `<rect x="${x0 + 186}" y="${GY - 40}" width="4" height="40" fill="#7a5530"/><ellipse cx="${x0 + 188}" cy="${GY - 44}" rx="16" ry="7" fill="#3f7f4a"/><ellipse cx="${x0 + 182}" cy="${GY - 34}" rx="12" ry="5" fill="#3f7f4a"/>`;
+      desk(x0 + 80, "#9bd2f0"); desk(x0 + 162, "#f6b6c8");
+    }
+    return { s: k.s, l: k.l };
   }
 
   // ----- 竹林、山坡、神獸殿 -----
@@ -1933,7 +2027,7 @@
     for (let x = 14; x < MW; x += 46) s += `<rect x="${x}" y="190" width="14" height="3" rx="1.5" fill="#fff" opacity=".35"/>`;
     // 點綴的樹
     const tree = x => `<rect x="${x - 2}" y="150" width="4" height="28" fill="#7a5530"/><circle cx="${x}" cy="146" r="13" fill="${P.tree}"/><circle cx="${x - 8}" cy="154" r="9" fill="${P.tree}"/>${winter ? `<path d="M${x - 11} 140 Q${x} 128 ${x + 11} 140" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>` : ""}`;
-    [124, 366, 606, 1066, 1306, 1496, 1676].forEach(x => s += tree(x));
+    [124, 366, 606, 1066, 1306, 1496, 1676, 1896, 2116].forEach(x => s += tree(x));
     if (m.station >= 6) s += `<rect y="${GY + 15}" width="${MW}" height="2" fill="#8a8a8a"/><rect y="${GY + 20}" width="${MW}" height="2" fill="#8a8a8a"/>`
       + Array.from({ length: Math.ceil(MW / 14) }, (_, i) => `<rect x="${i * 14}" y="${GY + 14}" width="5" height="9" fill="#7a5530" opacity=".55"/>`).join("");
 
@@ -2062,13 +2156,25 @@
       }
     }
 
-    // 未開拓的土地（市集、學堂、藥草園預定地）
+    // 市集：有記收入的月份數
     {
-      const [x0, w] = PLOT.frontier;
-      for (let i = 0; i < 16; i++) { const x = x0 + 10 + i * 11.5; s += `<path d="M${x} ${GY} l-4 -${14 + i % 3 * 5} M${x} ${GY} l1 -${18 + i % 4 * 4} M${x} ${GY} l5 -${12 + i % 2 * 6}" stroke="${winter ? "#a9b49a" : "#6aa64f"}" stroke-width="2" stroke-linecap="round"/>`; }
-      s += `<ellipse cx="${x0 + w / 2}" cy="150" rx="${w * .55}" ry="22" fill="#fff" opacity=".7"/><ellipse cx="${x0 + w * .35}" cy="128" rx="60" ry="14" fill="#fff" opacity=".55"/>
-        <rect x="${x0 + w / 2 - 2}" y="150" width="4" height="28" fill="#7a5530"/><rect x="${x0 + w / 2 - 50}" y="128" width="100" height="26" rx="4" fill="#ecd29b" stroke="#8a6236" stroke-width="1.5"/>${txt(x0 + w / 2, 141, "未開拓的土地", 11, "#4a3216", 700)}${txt(x0 + w / 2, 151, "市集・學堂・藥草園預定地", 7.5)}`;
-      // 仙鶴的小水池（竹林邊）
+      const [x0, w] = PLOT.market;
+      if (!m.market) s += lockedPlot(x0, w, "市集", `有記收入的月份 ${m.marketN} / 3 個月`);
+      else { const r = marketSVG(m.market, x0, w, night || m.time === "dusk", night || m.time === "dusk"); s += r.s; lights += r.l; }
+    }
+    // 學堂：看過月報表的月份數
+    {
+      const [x0, w] = PLOT.school;
+      if (!m.school) s += lockedPlot(x0, w, "學堂", `看過月報表 ${m.schoolN} / 1 個月`);
+      else { const r = schoolSVG(m.school, x0, night || m.time === "dusk", winter); s += r.s; lights += r.l; }
+    }
+    // 藥草園預定地（還沒做：霧＋木牌；年獸躲在上面的霧裡、鯤鵬的蛋在這裡）
+    {
+      const [x0, w] = PLOT.herb;
+      for (let i = 0; i < 13; i++) { const x = x0 + 10 + i * 11.5; s += `<path d="M${x} ${GY} l-4 -${14 + i % 3 * 5} M${x} ${GY} l1 -${18 + i % 4 * 4} M${x} ${GY} l5 -${12 + i % 2 * 6}" stroke="${winter ? "#a9b49a" : "#6aa64f"}" stroke-width="2" stroke-linecap="round"/>`; }
+      s += `<ellipse cx="${x0 + w / 2}" cy="150" rx="${w * .58}" ry="22" fill="#fff" opacity=".7"/><ellipse cx="${x0 + w * .4}" cy="126" rx="56" ry="14" fill="#fff" opacity=".55"/>
+        <rect x="${x0 + w / 2 - 2}" y="150" width="4" height="28" fill="#7a5530"/><rect x="${x0 + w / 2 - 46}" y="130" width="92" height="22" rx="4" fill="#ecd29b" stroke="#8a6236" stroke-width="1.5"/>${txt(x0 + w / 2, 145, "藥草園預定地", 11, "#4a3216", 700)}`;
+      // 仙鶴的小水池（竹林左邊）
       if (m.beasts.find(b => b.id === "crane").st) s += `<ellipse cx="${x0 + w - 24}" cy="${GY - 1}" rx="22" ry="5.5" fill="#8c7a5c"/><ellipse cx="${x0 + w - 24}" cy="${GY - 1.5}" rx="19" ry="4" fill="${winter ? "#d6ecf4" : "#7fc1e3"}"/>`;
     }
     // 麒麟住的竹林、九尾狐的小山坡、神獸殿
@@ -2130,7 +2236,13 @@
     if (k === "bamboo") return beastInfo("kirin", m);
     if (k === "hill") return beastInfo("fox", m);
     if (k === "temple") return "";
-    return "🎋 市集、學堂、藥草園的預定地，還在開發中，敬請期待！";
+    if (k === "market") return m.market ? `🛒 市集 Lv ${m.market}「${MARKET_NAMES[m.market - 1]}」：有記收入的月份 ${m.marketN} 個月`
+      + (m.market < 4 ? `。滿 ${M_TH.market[m.market]} 個月變成「${MARKET_NAMES[m.market]}」` : "。滿級了，晚上燈泡串會亮起來 🏮")
+      : `🛒 市集：有 3 個月記過收入就會開張（目前 ${m.marketN} 個月）`;
+    if (k === "school") return (m.school ? `📚 學堂 Lv ${m.school}「${SCHOOL_NAMES[m.school - 1]}」：看過月報表的月份 ${m.schoolN} 個月`
+      + (m.school < 4 ? `。滿 ${M_TH.school[m.school]} 個月變成「${SCHOOL_NAMES[m.school]}」` : "。滿級了，白澤也長成了吧 📜")
+      : "📚 學堂：打開一次「📊 月報表」就會蓋好私塾") + "。每個月打開一次「📊 月報表」就算一個月";
+    return "🌿 藥草園預定地：之後跟「緊急預備金」一起長出藥草，敬請期待！";
   }
   let manorKey = "", manorNow = null, D = null;
   function renderManor(g){
@@ -2290,6 +2402,7 @@
 
   // ---------- 神獸在自己的棲地晃晃 ----------
   const bPos = {};      // 每隻神獸目前的 x（場景單位）
+  const EGG = 36;       // 神獸蛋統一大小（場景單位，跟小錢的成鳥差不多）
   let beastKey = "";
   function beastInfo(id, m){
     const b = m.beasts.find(x => x.id === id);
@@ -2310,25 +2423,25 @@
     const box = $("beasts"); if (!D) return;
     const { k, TOP } = D, night = m.time === "night", crow = m.hour >= 5 && m.hour < 9;
     const show = m.beasts.filter(b => b.home && b.st && (!b.night || night));
-    const key = show.map(b => `${b.id}${b.st}${b.id === "fox" ? b.tails : ""}${beastMode(b, m)}`).join() + (crow ? "c" : "") + k + TOP + m.temple;
+    const key = show.map(b => `${b.id}${b.st}${b.id === "fox" ? b.tails : ""}${b.st === 1 ? (b.p >= .29 ? 2 : b.p >= .22 ? 1 : 0) : ""}${beastMode(b, m)}`).join() + (crow ? "c" : "") + k + TOP + m.temple;
     if (key !== beastKey) {
       beastKey = key;
-      box.innerHTML = show.map(b => { const md = beastMode(b, m);
-        return `<div class="beast${b.st === 4 ? " grown" : ""}${b.far && md !== "nianfest" ? " far" : ""}${md ? " " + md : ""}" data-b="${b.id}"${md ? ` data-mode="${md}"` : ""} role="button" aria-label="${b.name}">`
+      box.innerHTML = show.map((b, i) => { const md = beastMode(b, m);
+        return `<div class="beast${b.st === 1 ? " egg" : ""}${b.st === 4 ? " grown" : ""}${b.far && md !== "nianfest" ? " far" : ""}${md ? " " + md : ""}" data-b="${b.id}"${md ? ` data-mode="${md}"` : ""}${b.st === 1 ? ` style="--wd:${(-i * 1.37 % 6).toFixed(2)}s"` : ""} role="button" aria-label="${b.name}">`
         + (b.id === "rooster" && b.st === 4 && crow ? `<span class="bsay">喔喔喔～</span>` : "")
         + (md === "nianfest" ? `<span class="nbang">🧨💥 砰！</span>` : "")
         + `<div class="bflip">${beastSVG(b, b.st)}</div></div>`; }).join("");
     }
     box.querySelectorAll(".beast").forEach(el => {
       const b = m.beasts.find(x => x.id === el.dataset.b), md = el.dataset.mode || "";
-      const sz = md === "nianfest" ? 44 : b.size * (b.st === 1 ? .8 : 1);   // 春節跑下山的年獸是真實大小
+      const sz = md === "nianfest" ? 44 : b.st === 1 ? EGG : b.size;   // 春節跑下山的年獸是真實大小；蛋統一大小
       let x = bPos[b.id], foot = b.foot;
       if (b.st === 1 && b.eggAt) [x, foot] = b.eggAt;
       else if (md === "nianfest") { x = 162; foot = GY; }
       else if (md === "race") { x = -40; foot = GY + 16; }
       else if (md === "kunfly") { x = -sz; foot = TOP > 60 ? -TOP * .5 : 26; }
-      else if (md === "orbit") { x = 2130; foot = GY - 96 - Math.min(TOP * .2, 24); }
-      else if (x == null || b.st < 2 || b.still) x = bPos[b.id] = (b.home[0] + b.home[1]) / 2;
+      else if (md === "orbit") { x = 2530; foot = GY - 96 - Math.min(TOP * .2, 24); }
+      else if (x == null || b.st < 2 || b.still || Math.abs(x - (b.home[0] + b.home[1]) / 2) > 900) x = bPos[b.id] = (b.home[0] + b.home[1]) / 2;   // 搬家（白澤搬進學堂）就直接到新家
       el.style.transition = "none";
       el.style.setProperty("--dist", (md === "kunfly" ? MW + sz * 2 : MW + 80) * k + "px");
       Object.assign(el.style, { width: sz * k + "px", height: sz * k + "px", left: (x - sz / 2) * k + "px", top: (TOP + foot - sz * .97) * k + "px" });
@@ -2336,7 +2449,7 @@
   }
   function beastWander(){
     if (!D || !manorNow || reduceMotion || document.hidden || homeOpen) return;
-    const els = [...$("beasts").querySelectorAll(".beast")].filter(el => { const b = manorNow.beasts.find(x => x.id === el.dataset.b); return b.st >= 2 && !b.still && !b.fly && !el.dataset.mode; });
+    const els = [...$("beasts").querySelectorAll(".beast")].filter(el => { const b = manorNow.beasts.find(x => x.id === el.dataset.b); return b.st >= 2 && !b.still && !b.fly && !el.dataset.mode && !el.dataset.chat; });
     if (!els.length) return;
     const el = els[Math.floor(Math.random() * els.length)], b = manorNow.beasts.find(x => x.id === el.dataset.b);
     if (el.classList.contains("walking")) return;
@@ -2352,6 +2465,158 @@
     el.classList.add("walking"); setTimeout(() => el.classList.remove("walking"), ms);
   }
   setInterval(beastWander, 2600);
+
+  // ---------- 神獸聊天：約每 1～2 分鐘，兩隻湊在一起聊真實的帳 ----------
+  function chatCtx(){
+    const entries = [...state.entries.values()], g = computeGame(), m = manorNow;
+    const t = todayStr(), ym = t.slice(0, 7), day = +t.slice(8), [y, mo] = ym.split("-").map(Number), pm = mo === 1 ? `${y - 1}-12` : `${y}-${pad(mo - 1)}`;
+    const cmp = cat => { let cur = 0, prev = 0; entries.forEach(e => { if (e.type !== "expense" || e.cat !== cat || !e.date) return;
+      if (e.date.startsWith(ym)) cur += e.amount; else if (e.date.startsWith(pm) && +e.date.slice(8) <= day) prev += e.amount; }); return [cur, prev]; };
+    let morning = 0, night = 0, inc = 0, notes = 0, trans = 0, exp = 0; const days = new Set(), cats = new Set();
+    entries.forEach(e => {
+      if (e.type === "expense") cats.add(e.cat);
+      if (!e.rec && e.note && String(e.note).trim()) notes++;
+      if (!e.date || !e.date.startsWith(ym)) return;
+      days.add(e.date);
+      if (e.type === "income") inc += e.amount;
+      if (e.type === "expense") { if (!e.oneoff) exp += e.amount; if (e.cat === "交通") trans++; }
+      if (!e.rec && e.createdAt) { const h = new Date(e.createdAt).getHours(); if (h < 9) morning++; if (h >= 21) night++; }
+    });
+    return { g, m, food: cmp("餐飲"), shop: cmp("購物"), morning, night, inc, notes, trans, exp, days: days.size, nCat: Math.min(9, cats.size),
+      total: entries.length, saved: m.saved, seen: state.seen.length, seenThis: state.seen.includes(ym), today: entries.filter(e => e.date === t).length,
+      left: state.budget > 0 ? state.budget - exp : null, name: state.petName };
+  }
+  const lessTxt = ([cur, prev], what) => prev > 0 && cur < prev ? `這個月${what}比上個月同期少 ${fmt(prev - cur)}！` : prev > 0 ? `這個月${what}比上個月同期多了 ${fmt(cur - prev)}…` : `這個月${what}記了 ${fmt(cur)}`;
+  // 每隻神獸自己最愛聊的話題（帶入真實的帳）
+  const TOPIC = {
+    turtle: c => c.g.streak ? `連續記帳 ${c.g.streak} 天了，慢慢來比較快 🐢` : "今天還沒記帳耶，慢慢來沒關係",
+    kirin: c => c.left == null ? "主人還沒設每月預算耶" : c.left >= 0 ? `這個月預算還剩 ${fmt(c.left)}，守住它！` : "這個月超支了…下個月一起守住",
+    pixiu: c => c.saved ? `糧倉累計 ${fmt(c.saved)} 了，只進不出 💰` : "糧倉還空空的，好想吃金幣",
+    fox: c => `主人記過 ${c.nCat} 種分類，我就有 ${c.nCat} 條尾巴 🦊`,
+    jingwei: c => `最長連續記帳 ${c.g.best} 天，填海要靠堅持！`,
+    toad: c => c.inc ? `這個月收入記了 ${fmt(c.inc)}，招財成功 🐸` : "這個月還沒記收入，我再招一招！",
+    taotie: c => lessTxt(c.food, "吃的"),
+    baize: c => c.seenThis ? "這個月的月報表看過了，好認真 📜" : "這個月的月報表還沒打開喔",
+    tiger: c => lessTxt(c.shop, "購物"),
+    koi: c => `這個月已經記帳 ${c.days} 天了，全勤就跳龍門！`,
+    xiezhi: c => `有寫備註的帳 ${c.notes} 筆，每筆都清清楚楚`,
+    rooster: c => `這個月早上記了 ${c.morning} 筆，喔喔喔～`,
+    crane: c => `總共記了 ${c.total} 筆了，長長久久～`,
+    tianma: c => `這個月交通記了 ${c.trans} 筆，跑得比公車快！`,
+    suanni: c => `神獸殿已經有 ${c.m.grown} 隻神獸了，香火好旺 🏮`
+  };
+  const REPLY = ["真的假的！好厲害", "我也要努力！", "主人好棒 ✨", "嗯嗯，繼續保持～", "那我們一起加油！", "聽起來不錯耶 👍"];
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  // 固定配對的對話（a、b 是神獸 id；每句 [誰, 說什麼]）
+  const PAIRS = [
+    ["taotie", "tiger", c => [["a", TOPIC.taotie(c)], ["b", c.shop[1] > 0 && c.shop[0] < c.shop[1] ? `我這邊購物也少了 ${fmt(c.shop[1] - c.shop[0])} 🐯` : "購物我會幫主人看緊的 🐯"], ["a", "省下來的都存進糧倉吧！"]]],
+    ["turtle", "jingwei", c => [["a", TOPIC.turtle(c)], ["b", `我最長陪主人記了 ${c.g.best} 天！`], ["a", "堅持下去，海也填得平 🌊"]]],
+    ["pixiu", "toad", c => [["a", TOPIC.pixiu(c)], ["b", TOPIC.toad(c)], ["a", "錢錢進來，就不要讓它跑掉喔"]]],
+    ["baize", "xiezhi", c => [["a", TOPIC.baize(c)], ["b", TOPIC.xiezhi(c)], ["a", "知道錢花去哪，就不怕亂花"]]],
+    ["kirin", "fox", c => [["a", TOPIC.kirin(c)], ["b", TOPIC.fox(c)], ["a", "尾巴好多，好威風！"]]],
+    ["crane", "kirin", c => [["a", TOPIC.crane(c)], ["b", "一筆一筆累積起來真可觀"]]],
+    ["koi", "turtle", c => [["a", TOPIC.koi(c)], ["b", "我陪你慢慢游 🐢"]]],
+    ["tianma", "rooster", c => [["a", TOPIC.tianma(c)], ["b", `我早上記了 ${c.morning} 筆，玉兔說她晚上記了 ${c.night} 筆`], ["a", c.morning >= c.night ? "早起的鳥兒有錢存！" : "原來主人是夜貓子 🌙"]]],
+    ["rooster", "pixiu", c => [["a", `早上記 ${c.morning} 筆、晚上記 ${c.night} 筆，${c.morning >= c.night ? "早上贏！" : "晚上贏了…"}`], ["b", "什麼時候記都好，有記最重要 💰"]]],
+    ["suanni", "kirin", c => [["a", TOPIC.suanni(c)], ["b", "我也想去上香～"]]],
+    ["jingwei", "koi", c => [["a", TOPIC.jingwei(c)], ["b", TOPIC.koi(c)]]]
+  ];
+  const baby = (b, t) => b && b.st === 2 ? t.replace(/我/g, "偶").replace(/[。！]$/, "") + "～" : t;
+  function bubble(el, text, ms = 2900){
+    el.querySelectorAll(".talk").forEach(x => x.remove());
+    const sp = document.createElement("span"); sp.className = "bsay talk"; sp.textContent = text; el.appendChild(sp);
+    const r = sp.getBoundingClientRect(), W = innerWidth;   // 泡泡不要超出螢幕
+    sp.style.marginLeft = (r.right > W - 8 ? W - 8 - r.right : r.left < 8 ? 8 - r.left : 0) + "px";
+    setTimeout(() => sp.remove(), ms);
+  }
+  function freeBubble(el, text, ms = 3200){   // 神龍繞廟時會翻面，泡泡另外放、不跟著轉
+    const r = el.getBoundingClientRect(), mr = $("manorIn").getBoundingClientRect(), sp = document.createElement("span");
+    sp.className = "fsay"; sp.textContent = text; $("beasts").appendChild(sp);
+    const x = Math.max(r.left + r.width / 2, 8 + sp.offsetWidth / 2), x2 = Math.min(x, innerWidth - 8 - sp.offsetWidth / 2);
+    Object.assign(sp.style, { left: x2 - mr.left + "px", top: r.top - mr.top + "px" });
+    setTimeout(() => sp.remove(), ms);
+  }
+  function chatWalk(el, b, tx, cb){
+    const from = bPos[b.id], dist = Math.abs(tx - from);
+    if (dist < 6) return cb();
+    const ms = dist / Math.max(b.speed || 20, 30) * 1000, { k } = D;
+    el.classList.toggle("flip", tx < from); el.style.transition = `left ${ms}ms linear`;
+    el.style.left = (tx - b.size / 2) * k + "px"; bPos[b.id] = tx;
+    el.classList.add("walking"); setTimeout(() => { el.classList.remove("walking"); cb(); }, ms);
+  }
+  function beastChat(force){
+    if (!D || !manorNow || (!force && (reduceMotion || document.hidden || homeOpen))) return false;
+    const m = manorNow, c = chatCtx(), mn = $("manor"), v0 = mn.scrollLeft / D.k, v1 = v0 + mn.clientWidth / D.k;
+    const vis = x => x > v0 + 16 && x < v1 - 16;
+    const all = [...$("beasts").querySelectorAll(".beast")].map(el => ({ el, b: m.beasts.find(x => x.id === el.dataset.b) }));
+    const inView = el => { const r = el.getBoundingClientRect(); return r.right > 20 && r.left < innerWidth - 20 && r.bottom > 0 && r.top < innerHeight; };
+    // 飛過的鯤鵬、繞廟的神龍、月亮上的玉兔：只冒一句
+    const flyers = all.filter(({ el, b }) => b.st >= 2 && (el.dataset.mode === "kunfly" || el.dataset.mode === "orbit" || b.id === "rabbit") && inView(el));
+    if (flyers.length && Math.random() < .35) {
+      const { el, b } = pick(flyers);
+      const L = { kun: ["底下的莊園越來越大了！🐋", `糧倉 ${fmt(c.saved)}，我要飛更高～`], dragon: ["神獸殿的香火好旺 🐉", `已經有 ${m.grown} 隻神獸了！`],
+        rabbit: [`這個月晚上記了 ${c.night} 筆 🌙`, "今晚也記帳了嗎？", "月亮上看得到整座莊園喔"] }[b.id];
+      const t = baby(b, pick(L)); el.dataset.mode === "orbit" ? freeBubble(el, t) : bubble(el, t, 3600); return true;
+    }
+    const ok = ({ el, b }) => b.st >= 2 && b.home && !b.fly && b.id !== "rabbit" && b.id !== "nian" && !el.dataset.mode && !el.dataset.chat && !el.classList.contains("walking");
+    const pool = all.filter(ok), pos = b => bPos[b.id] != null ? bPos[b.id] : (b.home[0] + b.home[1]) / 2;
+    const canWalk = b => !b.still && b.id !== "koi" && b.foot >= GY - 6;
+    const seen = pool.filter(({ b }) => vis(pos(b)));
+    if (!seen.length) return false;
+    // 1) 固定配對：一隻在畫面裡，另一隻在畫面裡或走得過來
+    const pairs = [];
+    PAIRS.forEach(([a, bb, fn]) => {
+      const A = pool.find(x => x.b.id === a), B = pool.find(x => x.b.id === bb); if (!A || !B) return;
+      const d = Math.abs(pos(A.b) - pos(B.b)), va = vis(pos(A.b)), vb = vis(pos(B.b));
+      if (!va && !vb) return;
+      if (d <= 130 || (vb && canWalk(A.b) && d < 700) || (va && canWalk(B.b) && d < 700)) pairs.push([A, B, fn]);
+    });
+    let A, B, lines;
+    if (pairs.length && Math.random() < .8) { const p = pick(pairs); [A, B] = p; lines = p[2](c); }
+    else if (seen.length >= 2) {
+      const walkers = seen.filter(x => canWalk(x.b)); if (!walkers.length && Math.abs(pos(seen[0].b) - pos(seen[1].b)) > 130) return false;
+      A = walkers.length ? pick(walkers) : seen[0]; B = pick(seen.filter(x => x !== A));
+      const tp = TOPIC[A.b.id], tb = TOPIC[B.b.id];
+      lines = m.fest && Math.random() < .6 ? [["a", `今天是${m.fest}！神獸殿有廟會 🧨`], ["b", "走走走，去看舞獅 🦁"], ["a", "記得記一筆節日的帳喔"]]
+        : (m.wx === "rain" || m.wx === "storm") && Math.random() < .5 ? [["a", "下雨了，主人出門有帶傘嗎？☔"], ["b", `${c.name}都撐紅傘了！`], ["a", "下雨天就待在家記帳吧～"]]
+        : tp ? [["a", tp(c)], ["b", tb && Math.random() < .5 ? tb(c) : pick(REPLY)]].concat(Math.random() < .5 ? [["a", pick(["嘿嘿，一起加油", "明天也要記喔！", `${c.name}知道了一定很開心`])]] : [])
+        : [["a", c.today ? `今天主人記了 ${c.today} 筆耶！` : "今天主人還沒記帳耶"], ["b", pick(REPLY)]];
+    } else {
+      // 2) 只有一隻在畫面裡：跑去找小錢講話
+      const pg = computeGame(); if (stageOf(pg.lvl) === 0 || !vis(pet.x)) return false;
+      const one = seen.find(x => canWalk(x.b) && Math.abs(pos(x.b) - pet.x) < 400); if (!one) return false;
+      petPause(14000);
+      const t = TOPIC[one.b.id] ? TOPIC[one.b.id](c) : `${c.name}，今天記帳了嗎？`;
+      one.el.dataset.chat = "1";
+      const side = pos(one.b) < pet.x ? -1 : 1;
+      chatWalk(one.el, one.b, pet.x + side * 40, () => {
+        one.el.classList.toggle("flip", side > 0);
+        bubble(one.el, baby(one.b, t));
+        setTimeout(() => say(pick(["真的嗎？好厲害！", "嗯！我們一起加油 ✨", "謝謝你告訴我～", "被你說得我都想記帳了"]), 3000), 3000);
+        setTimeout(() => delete one.el.dataset.chat, 6500);
+      });
+      return true;
+    }
+    // 走到對方旁邊（能走的那隻走過去），面對面，輪流講
+    let mover = A, stay = B;
+    const pa = pos(A.b), pb = pos(B.b), vA = vis(pa), vB = vis(pb);
+    if (!canWalk(A.b) || (canWalk(B.b) && !vB && vA)) [mover, stay] = [B, A];
+    const d = Math.abs(pos(mover.b) - pos(stay.b));
+    if (d > 130 && !canWalk(mover.b)) return false;
+    mover.el.dataset.chat = stay.el.dataset.chat = "1";
+    const side = pos(mover.b) < pos(stay.b) ? -1 : 1, gap = (mover.b.size + stay.b.size) * .42;
+    const go = canWalk(mover.b) && (d > 130 || d < gap * .6) ? pos(stay.b) + side * gap : pos(mover.b);
+    chatWalk(mover.el, mover.b, go, () => {
+      const facing = pos(mover.b) < pos(stay.b);
+      mover.el.classList.toggle("flip", !facing); if (!stay.b.still) stay.el.classList.toggle("flip", facing);
+      const who = { a: A, b: B };
+      lines.slice(0, 3).forEach(([w, t], i) => setTimeout(() => bubble(who[w].el, baby(who[w].b, t)), i * 3000));
+      setTimeout(() => { delete mover.el.dataset.chat; delete stay.el.dataset.chat; }, lines.length * 3000 + 400);
+    });
+    return true;
+  }
+  window.__ledgerChat = () => beastChat(true);   // 測試用
+  (function chatLoop(){ setTimeout(() => { beastChat(); chatLoop(); }, 60000 + Math.random() * 60000); })();
   {   // 神龍繞神獸殿飛：橢圓軌道，往左飛時轉頭，靠前（下方）時稍微變大
     const st = document.createElement("style"); let kf = "@keyframes orbit{";
     for (let i = 0; i <= 24; i++) { const t = i / 24 * 2 * Math.PI, sn = Math.sin(t), z = (1 + .12 * sn).toFixed(3);
@@ -2390,12 +2655,18 @@
   $("homeClose").onclick = closeHome;
   addEventListener("keydown", e => { if (e.key === "Escape" && homeOpen && !openSheetEl && !reportOpen) closeHome(); }, true);
 
-  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary, m.food, m.shop, m.station, ...m.beasts.map(b => b.st)]; };
+  const NB = 8;   // manorLevels 裡神獸從第幾個開始（前面是建築）
+  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary, m.food, m.shop, m.station, m.market, m.school, ...m.beasts.map(b => b.st)]; };
   function manorNews(a, b){
-    for (let i = 1; i < BEASTS.length; i++) { const x = BEASTS[i], p = a[6 + i] || 0, q = b[6 + i] || 0;
-      if (q > p) return q === 1 ? `🥚 ${x.where.replace(/（.*）/, "")}出現了一顆神獸蛋！是${x.name}的蛋喔`
+    const iB = BEASTS.findIndex(x => x.id === "baize");
+    // 第一次看月報表：私塾開張，白澤的蛋也一起出現在學堂
+    if (!a[7] && b[7]) return `📚 學堂開張了（${SCHOOL_NAMES[0]}）！就在市集旁邊` + ((b[NB + iB] || 0) > (a[NB + iB] || 0) && b[NB + iB] === 1 ? "，白澤的蛋也出現在學堂裡 🥚" : " 🎉");
+    for (let i = 1; i < BEASTS.length; i++) { const x = BEASTS[i], p = a[NB + i] || 0, q = b[NB + i] || 0;
+      if (q > p) return q === 1 ? `🥚 ${x.id === "baize" && b[7] ? "學堂" : x.where.replace(/（.*）/, "")}出現了一顆神獸蛋！是${x.name}的蛋喔`
         : q === 4 ? `${x.em} ${x.name}長成神獸了！神獸殿香火 +1 🎉` : `${x.em} ${x.name}${q === 2 ? "破殼成幼獸" : "長成少年"}了！`; }
     if (!a[2] && b[2]) return "🏦 莊園蓋好糧倉了！往右滑去看看 🎉";
+    if (b[6] > a[6]) return a[6] ? `🛒 市集升級成「${MARKET_NAMES[b[6] - 1]}」了！${b[6] === 4 ? "晚上記得來逛 🏮" : "往右滑去看看 🎉"}` : "🛒 市集開張了！就在糧倉旁邊 🎉";
+    if (b[7] > a[7]) return `📚 學堂升級成「${SCHOOL_NAMES[b[7] - 1]}」了！往右滑去看看 🎉`;
     if (b[4] > a[4]) return a[4] ? `🧴 小錢雜貨店升級成「${SHOP_NAMES[b[4] - 1]}」了！往右滑去看看 🎉` : "🧴 小錢雜貨店開張了！就在食堂旁邊 🎉";
     if (b[5] > a[5]) return a[5] ? `🚉 小錢驛站升級成「${STATION_NAMES[b[5] - 1]}」了！往右滑去看看 🎉` : "🚉 小錢驛站蓋好了！就在雜貨店旁邊 🎉";
     if (b[3] > a[3]) return a[3] ? `🍜 小錢食堂升級成「${FOOD_NAMES[b[3] - 1]}」了！往右滑去看看 🎉` : "🍜 小錢食堂開張了！就在大宅旁邊 🎉";
