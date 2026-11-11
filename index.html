@@ -239,7 +239,7 @@
   @keyframes smoke{0%{opacity:0;transform:translate(0,0) scale(.6)}15%{opacity:.75}100%{opacity:0;transform:translate(10px,-38px) scale(2.3)}}
   .drive{animation:drive 18s linear infinite}
   .drive.train{animation-duration:12s}
-  @keyframes drive{from{transform:translateX(-140px)}to{transform:translateX(2900px)}}
+  @keyframes drive{from{transform:translateX(-140px)}to{transform:translateX(3120px)}}
   @media (prefers-reduced-motion: reduce){ .drive{animation:none!important;transform:translateX(860px)} }
   .twinkle{animation:twinkle 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
   @keyframes twinkle{0%,100%{opacity:.3;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
@@ -266,6 +266,7 @@
   .beast.grown:before{content:"";position:absolute;inset:8% 4% 0;border-radius:50%;background:radial-gradient(rgba(255,226,140,.55),rgba(255,226,140,0) 70%);pointer-events:none}
   .beast .bsay{position:absolute;bottom:92%;left:50%;transform:translateX(-50%);background:var(--card);color:var(--ink);font-size:11px;border-radius:10px;padding:2px 7px;white-space:nowrap;box-shadow:var(--shadow);animation:crow 6s ease-in-out infinite}
   @keyframes crow{0%,55%,100%{opacity:0}62%,90%{opacity:1}}
+  .beast .bsay.qnote{background:none;box-shadow:none;font-size:14px;padding:0;animation-duration:9s}
   .beast.far{opacity:.85;filter:saturate(.8)}
   .beast .eggw{animation:eggwob 3.2s ease-in-out infinite;animation-delay:var(--wd,0s);transform-box:fill-box;transform-origin:50% 100%}
   @keyframes eggwob{0%,64%,100%{transform:rotate(0)}70%{transform:rotate(-8deg)}78%{transform:rotate(7deg)}86%{transform:rotate(-4deg)}92%{transform:rotate(2deg)}}
@@ -504,6 +505,7 @@
     <span><b>一次性大額支出</b><small>例如換電腦、買家電。會另外統計，不算進每月開銷、預算和報表比較。</small></span>
   </label>
   <div class="hint" id="lifeHint" hidden>🧴 日用品、理髮、洗衣、修繕這類生活開銷都記在「生活」，會讓莊園的雜貨店長大。</div>
+  <div class="hint" id="treatHint" hidden>🎁 購物、娛樂這類買給自己開心的花費都記在「犒賞」。沒花犒賞錢的日子，廟口戲台會長大。</div>
   <div class="hint" id="savHint" hidden>🌾 存錢、定期定額不算開銷和預算（結餘會扣掉），會存進莊園的糧倉。</div>
   <div class="hint" id="recHint" hidden></div>
   <div class="hint" id="oneHint" hidden>💡 這筆金額比較大，要標記成一次性支出嗎？</div>
@@ -689,17 +691,21 @@
 (() => {
   const CATS = {
     expense: [
-      ["餐飲","🍱"],["飲料","🧋"],["交通","🚌"],["購物","🛍️"],["日用","🧴"],["娛樂","🎮"],
-      ["居住","🏠"],["醫療","💊"],["教育","📚"],["人情","🎁"],["3C","💻"],["其他","📦"]
+      ["餐飲","🍱"],["飲料","🧋"],["交通","🚌"],["購物","🎁"],["日用","🧴"],
+      ["居住","🏠"],["醫療","💊"],["教育","📚"],["人情","🧧"],["3C","💻"],["其他","📦"]
     ],
     income: [["薪水","💰"],["獎金","🏆"],["投資","📈"],["兼職","💼"],["其他","📦"]],
     saving: [["定期定額","📈"],["股票","💹"],["存款","🐷"],["定存","🏦"],["其他","🌾"]]
   };
   const TYPE_NAME = { expense: "支出", income: "收入", saving: "存錢" };
   // 「日用」畫面上叫「生活」（日用品、理髮、洗衣、修繕）；資料裡仍存「日用」，舊紀錄不用改
-  const CAT_LABEL = { "日用": "生活" };
+  // 「購物」「娛樂」合併成「犒賞」（第五批）：新帳存「購物」，舊的「娛樂」照樣顯示成犒賞、統計算同一類
+  const CAT_LABEL = { "日用": "生活", "購物": "犒賞", "娛樂": "犒賞" };
   const catName = c => CAT_LABEL[c] || c;
-  const emojiOf = (type, cat) => ((CATS[type] || CATS.expense).find(c => c[0] === cat) || ["", "📦"])[1];
+  const catKey = c => c === "娛樂" ? "購物" : c;   // 統計用：娛樂併進購物
+  const isTreat = e => e.type === "expense" && (e.cat === "購物" || e.cat === "娛樂");
+  const catWords = c => catKey(c) === "購物" ? "犒賞購物娛樂" : catName(c) + c;   // 搜尋用
+  const emojiOf = (type, cat) => ((CATS[type] || CATS.expense).find(c => c[0] === catKey(cat)) || ["", "📦"])[1];
   const $ = id => document.getElementById(id);
   const fmt = n => "$" + Math.round(n).toLocaleString("zh-TW");
   const pad = n => String(n).padStart(2, "0");
@@ -1254,29 +1260,35 @@
   const lvBy = (v, th) => th.filter(t => v >= t).length;
   const M_TH = { house: [7, 16, 21], field: [30, 90, 180, 365], pond: [7, 21, 60, 100], granary: [50000, 100000, 300000],
     food: [10, 30, 60, 100, 150, 220, 300, 400, 550, 730], shop: [3, 10, 20, 35, 55, 80], station: [5, 15, 30, 50, 80, 120, 170, 240], market: [3, 6, 9, 12], school: [1, 3, 6, 12],
-    herb: [10, 30, 60, 100, 180], herbB: [10, 30, 60, 100] };
+    herb: [10, 30, 60, 100, 180], herbB: [10, 30, 60, 100], stage: [20, 50, 100, 180, 270, 365] };
+  const STAGE_NAMES = ["路邊說書", "布袋戲台", "歌仔戲棚", "戲台＋看戲的小鳥", "兩層戲樓", "大戲院"];
   const MARKET_NAMES = ["一個攤位", "三個攤位", "熱鬧市集", "夜市"];
   const SCHOOL_NAMES = ["私塾", "學堂", "書院", "藏書閣"];
   const HERB_NAMES = ["幾株小藥草", "一小畦藥草田", "開花的藥草田", "藥草滿園", "百草園＋小藥鋪"];
   const HERBB_NAMES = ["小人參", "大人參", "靈芝", "千年靈芝"];
   // 每天的帳（排除固定項目自動筆，以 date 算）：省錢日＝支出只有餐飲／交通；養生日＝省錢日且當天支出 ≤ $300；無飲料日＝沒記飲料
+  // 第五批：無犒賞日＝有記帳（非固定項目）且整天沒有購物／娛樂支出；treatMon 給囚牛用（每月記帳日、犒賞日）
   function dayStats(entries){
-    const d = {};
-    entries.forEach(e => { if (e.rec || !e.date) return; const x = d[e.date] = d[e.date] || { ok: true, sum: 0, drink: false };
+    const d = {}, treatDays = new Set();
+    entries.forEach(e => { if (!e.date) return; if (isTreat(e)) treatDays.add(e.date);
+      if (e.rec) return; const x = d[e.date] = d[e.date] || { ok: true, sum: 0, drink: false };
       if (e.type === "expense") { if (e.cat !== "餐飲" && e.cat !== "交通") x.ok = false; if (e.cat === "飲料") x.drink = true; x.sum += e.amount; } });
-    let save = 0, health = 0, noDrink = 0;
-    Object.values(d).forEach(x => { if (x.ok) { save++; if (x.sum <= 300) health++; } if (!x.drink) noDrink++; });
-    return { save, health, noDrink };
+    let save = 0, health = 0, noDrink = 0, noTreat = 0; const treatMon = {};
+    const TM = ym => treatMon[ym] = treatMon[ym] || { days: 0, treat: 0 };
+    Object.entries(d).forEach(([k, x]) => { if (x.ok) { save++; if (x.sum <= 300) health++; } if (!x.drink) noDrink++; if (!treatDays.has(k)) noTreat++; TM(k.slice(0, 7)).days++; });
+    treatDays.forEach(k => TM(k.slice(0, 7)).treat++);
+    return { save, health, noDrink, noTreat, treatMon };
   }
   const SHOP_NAMES = ["路邊地攤", "柑仔店", "雜貨店", "雜貨店＋理髮廳", "理髮廳＋洗衣店", "小鎮商店街"];
   const STATION_NAMES = ["腳踏車架", "機車行", "公車候車亭", "加油站", "客運站", "鐵道小站", "火車站", "高鐵站"];
   const FOOD_NAMES = ["路邊一口灶", "小吃推車", "麵攤", "小吃店", "自助餐", "兩層樓食堂", "餐館", "三層酒樓", "辦桌酒樓", "御膳樓"];
   // 這個月到今天的餐飲，比上個月同期少 → 招牌發金光
   function foodSaving(entries, cat = "餐飲"){
+    const cs = [].concat(cat);
     const t = todayStr(), ym = t.slice(0, 7), day = +t.slice(8), [y, mo] = ym.split("-").map(Number);
     const pm = mo === 1 ? `${y - 1}-12` : `${y}-${pad(mo - 1)}`;
     let cur = 0, prev = 0;
-    entries.forEach(e => { if (e.type !== "expense" || e.cat !== cat || !e.date) return;
+    entries.forEach(e => { if (e.type !== "expense" || !cs.includes(e.cat) || !e.date) return;
       if (e.date.startsWith(ym)) cur += e.amount; else if (e.date.startsWith(pm) && +e.date.slice(8) <= day) prev += e.amount; });
     return prev > 0 && cur < prev;
   }
@@ -1289,6 +1301,7 @@
     const ds = dayStats(entries);
     const r = {
       herbN: ds.save, herb: lvBy(ds.save, M_TH.herb), herbBN: ds.health, herbB: lvBy(ds.health, M_TH.herbB),
+      stageN: ds.noTreat, stage: lvBy(ds.noTreat, M_TH.stage), stageSave: foodSaving(entries, ["購物", "娛樂"]),
       house: 1 + lvBy(g.lvl, M_TH.house), food: lvBy(entries.filter(e => e.type === "expense" && e.cat === "餐飲").length, M_TH.food), field: lvBy(g.days, M_TH.field), pond: lvBy(g.best, M_TH.pond),
       granary: saved > 0 ? 1 + lvBy(saved, M_TH.granary) : 0, lanterns: g.okMonths, saved, g,
       foodN: entries.filter(e => e.type === "expense" && e.cat === "餐飲").length, foodSave: foodSaving(entries),
@@ -1306,6 +1319,9 @@
     };
     // 學堂蓋好後，白澤（連同蛋）搬進學堂
     if (r.school) { const bz = r.beasts.find(b => b.id === "baize"); bz.home = [2082, 2106]; bz.where = "學堂"; }
+    // 囚牛坐在戲台上（歌仔戲棚以後有台子；之前坐在台邊地上）
+    { const q = r.beasts.find(b => b.id === "qiuniu"), x = [2700, 2700, 2846, 2814, 2818, 2818, 2830][r.stage];
+      q.home = [x, x]; q.foot = r.stage >= 4 ? GY - 30 : r.stage === 3 ? GY - 26 : GY; if (!r.stage) q.where = "戲台預定地旁"; }
     return r;
   }
 
@@ -1358,11 +1374,11 @@
     } catch {}   // 沒網路就沿用上次的天氣
     wxBusy = false;
   }
-  const MW = 2780, MH = 200, GY = 178, BOT = 72;
+  const MW = 3000, MH = 200, GY = 178, BOT = 72;
   // 依螢幕高度決定放大倍率；多出來的高度補成上方天空、下方草地
   const dims = () => { const h = $("stage").clientHeight || innerHeight; const k = Math.max(1.15, Math.min(1.8, h / 620));
     const VH = Math.ceil(h / k); return { k, VH, TOP: Math.max(0, VH - MH - BOT) }; };
-  const PLOT = { gate: [0, 130], house: [130, 240], food: [370, 240], shop: [610, 220], station: [830, 240], field: [1070, 240], pond: [1310, 190], granary: [1500, 180], market: [1680, 220], school: [1900, 220], herb: [2120, 160], bamboo: [2280, 120], temple: [2400, 260], hill: [2660, 120] };
+  const PLOT = { gate: [0, 130], house: [130, 240], food: [370, 240], shop: [610, 220], station: [830, 240], field: [1070, 240], pond: [1310, 190], granary: [1500, 180], market: [1680, 220], school: [1900, 220], herb: [2120, 160], bamboo: [2280, 120], temple: [2400, 260], stage: [2660, 220], hill: [2880, 120] };
   const SEASON = {
     spring: { ground: "#a8d67c", hill: "#8cc56b", far: "#c3e2ae", tree: "#7cbf5a", road: "#ead6a8" },
     summer: { ground: "#8cc366", hill: "#67ac4b", far: "#a9d690", tree: "#4f9a3a", road: "#ead6a8" },
@@ -1602,11 +1618,11 @@
     return { s, l };
   }
 
-  // ---------- 神獸殿＋培養神獸（21 隻） ----------
+  // ---------- 神獸殿＋培養神獸（22 隻） ----------
   // 進度全部從紀錄即時算；用「歷史最佳」決定階段，所以長大了就不會退回去。
   const B_STAGE = ["尚未出現", "神獸蛋", "幼獸", "少年", "神獸"];
   const stageOfP = p => p <= 0 ? 0 : p < 1 / 3 ? 1 : p < 2 / 3 ? 2 : p < 1 ? 3 : 4;
-  const TEMPLE_TH = [1, 3, 6, 10, 15, 21];
+  const TEMPLE_TH = [1, 3, 6, 10, 15, 22];
   const TEMPLE_NAMES = ["土地公小祠", "小廟落成", "香火漸旺", "兩進大廟", "龍柱剪黏", "香客排隊的大廟", "香火鼎盛"];
   const TEMPLE_FRONT = [2468, 2592];
   const BEASTS = [
@@ -1614,7 +1630,7 @@
     { id: "turtle", em: "🐢", name: "神龜", where: "荷花池邊的石頭", home: [1322, 1362], foot: 172, size: 30, speed: 7, egg: ["#e6f0d8", "#5fae6e"] },
     { id: "kirin", em: "🦌", name: "麒麟", where: "竹林旁", home: [2290, 2390], foot: GY, size: 46, speed: 28, egg: ["#e3f4ef", "#5fb8a8"] },
     { id: "pixiu", em: "💰", name: "貔貅", where: "糧倉金庫門口", home: [1604, 1672], foot: GY, size: 40, speed: 22, egg: ["#fff3cf", "#e0a92a"] },
-    { id: "fox", em: "🦊", name: "九尾狐", where: "竹林外的小山坡", home: [2682, 2750], foot: 158, size: 42, speed: 34, egg: ["#fbf6ef", "#f0b26a"] },
+    { id: "fox", em: "🦊", name: "九尾狐", where: "戲台旁的小山坡", home: [2902, 2970], foot: 158, size: 42, speed: 34, egg: ["#fbf6ef", "#f0b26a"] },
     { id: "jingwei", em: "🐦", name: "精衛", where: "荷花池邊", home: [1440, 1494], foot: 176, size: 26, speed: 40, egg: ["#eef0f4", "#f29bbd"] },
     { id: "toad", em: "🐸", name: "三腳金蟾", where: "糧倉旁的大銅錢上", home: [1516, 1516], foot: GY, size: 30, still: true, egg: ["#fff1c4", "#e9b93a"] },
     { id: "taotie", em: "🍖", name: "饕餮", where: "小錢食堂後廚", home: [592, 592], foot: GY, size: 36, still: true, egg: ["#efe8f8", "#8a6bbf"] },
@@ -1630,6 +1646,7 @@
     { id: "crane", em: "🦢", name: "仙鶴", where: "竹林邊的水池", home: [2246, 2270], foot: GY - 1, size: 40, speed: 8, egg: ["#ffffff", "#e2302a"] },
     { id: "tianma", em: "🐎", name: "天馬", where: "小錢驛站（尖峰時間跟公車賽跑）", home: [880, 1040], foot: GY, size: 44, speed: 36, egg: ["#f6f8fc", "#9bb8e8"] },
     { id: "chiwen", em: "💧", name: "螭吻", where: "神獸殿屋脊上", home: [2486, 2486], foot: GY - 67, size: 30, still: true, noShadow: true, egg: ["#e6f7f4", "#4fb6d8"], eggAt: [2420, GY] },
+    { id: "qiuniu", em: "🎻", name: "囚牛", where: "廟口戲台上（聽戲、拉胡琴）", home: [2818, 2818], foot: GY - 30, size: 36, still: true, egg: ["#f8eccb", "#d8452f"], eggAt: [2674, GY] },
     { id: "dragon", em: "🐉", name: "神龍", where: "神獸殿上空的雲（繞廟飛）", home: [2530, 2530], foot: GY - 100, size: 58, fly: true, noShadow: true, egg: ["#e3f6ea", "#2f9a5a"], eggAt: [2644, GY] }
   ];
   const FESTS = ["除夕", "春節", "清明", "端午", "中秋"];
@@ -1646,7 +1663,7 @@
     const cats = new Set(), fests = new Set(); let night = 0, morning = 0, notes = 0, train = 0, first = "";
     entries.forEach(e => {
       if (!e.date) return; const x = M(e.date.slice(0, 7)); x.n++;
-      if (e.type === "expense") { cats.add(e.cat); if (!e.oneoff) x.exp += e.amount; if (e.cat === "餐飲") x.food += e.amount; if (e.cat === "購物") x.shop += e.amount; if (e.cat === "交通") train++; }
+      if (e.type === "expense") { cats.add(catKey(e.cat)); if (!e.oneoff) x.exp += e.amount; if (e.cat === "餐飲") x.food += e.amount; if (isTreat(e)) x.shop += e.amount; if (e.cat === "交通") train++; }
       if (e.type === "income" && e.amount > 0) x.inc += e.amount;
       if (e.type === "saving") { x.sav += e.amount; if (e.cat === "定期定額") x.dca = true; }
       const day = dayOf(e.createdAt || Date.parse(e.date)); M(day.slice(0, 7)).days.add(day); if (!first || day < first) first = day;
@@ -1666,6 +1683,9 @@
       if (n / dim > koi[0]) koi = [n / dim, n, dim]; });
     const kunM = keys.filter(k => k < thisYm && mon[k].inc > 0 && mon[k].sav >= mon[k].inc * .3).length;
     const span = first ? dayDiff(first, today) + 1 : 0, seenN = state.seen.length;
+    // 囚牛：已結束、記帳日 ≥ 10 天的月份裡，犒賞日 ≤ 5 天的月份數（累計）
+    const tm = ds.treatMon, lastYm = ymAdd(thisYm, -1), qiuM = Object.keys(tm).filter(k => k < thisYm && tm[k].days >= 10 && tm[k].treat <= 5).length;
+    const qiuLast = tm[lastYm] ? `（上個月花了 ${tm[lastYm].treat} 天${tm[lastYm].days < 10 ? "，記帳不到 10 天不算" : ""}）` : "";
     const v = {
       phoenix: [g.lvl / 21, `${state.petName} Lv ${g.lvl} / 21，變成浴火鳳凰就算一隻`],
       turtle: [dca.best / 24, `「定期定額」最長連續 ${dca.best} / 24 個月（目前連續 ${dca.cur} 個月）`],
@@ -1677,7 +1697,7 @@
       taotie: [less.best / 3, `餐飲連續比上個月少 ${less.best} / 3 個月（目前連續 ${less.cur} 個月）`],
       baize: [seenN / 12, `看過月報表的月份 ${seenN} / 12 個月（每個月打開一次「📊 月報表」就算）`],
       nian: [span / 365, `從第一筆帳算起 ${Math.min(span, 365)} / 365 天`],
-      tiger: [lessShop.best / 3, `購物連續比上個月少 ${lessShop.best} / 3 個月（目前連續 ${lessShop.cur} 個月）`],
+      tiger: [lessShop.best / 3, `犒賞連續比上個月少 ${lessShop.best} / 3 個月（目前連續 ${lessShop.cur} 個月）`],
       koi: [koi[0], koi[1] ? `記帳天數最多的一個月：${koi[1]} / ${koi[2]} 天（整個月每天都有記帳就長成）` : "有一個月每天都記帳（全勤月）"],
       kun: [kunM / 3, `存錢佔收入 30% 以上的月份 ${kunM} / 3 個月（看已結束的月份）`],
       xiezhi: [notes / 100, `有寫備註的帳 ${notes} / 100 筆`],
@@ -1685,7 +1705,8 @@
       rooster: [morning / 100, `早上 9 點前記帳 ${morning} / 100 筆`],
       crane: [entries.length / 1000, `累計記帳 ${entries.length} / 1000 筆`],
       tianma: [train / 240, `交通 ${train} / 240 筆（小錢驛站滿級）`],
-      chiwen: [ds.noDrink / 90, `沒喝飲料的記帳日 ${Math.min(ds.noDrink, 90)} / 90 天`]
+      chiwen: [ds.noDrink / 90, `沒喝飲料的記帳日 ${Math.min(ds.noDrink, 90)} / 90 天`],
+      qiuniu: [qiuM / 6, `犒賞 ≤ 5 天的月份 ${Math.min(qiuM, 6)} / 6 個月${qiuLast}`]
     };
     const mk = (b, p, line) => { const pp = Math.max(0, Math.min(1, p || 0));
       return { ...b, p: pp, st: b.id === "phoenix" ? (pp >= 1 ? 4 : 0) : stageOfP(pp), line, tails: nCat }; };
@@ -1695,7 +1716,7 @@
     const iS = list.findIndex(b => b.id === "suanni");
     list[iS] = mk(BEASTS[iS], base ? fl.length / 5 : 0, base ? `五大節日當天記帳：${fl.length ? fl.join("、") : "還沒有"}（${fl.length} / 5）` : "神獸殿蓋好（養成第一隻神獸）後，在除夕、春節、清明、端午、中秋記帳");
     const others = list.filter(b => b.st === 4).length, iD = list.findIndex(b => b.id === "dragon");
-    list[iD] = mk(BEASTS[iD], others / 20, `其他 20 隻神獸養成 ${others} / 20 隻`);
+    list[iD] = mk(BEASTS[iD], others / 21, `其他 21 隻神獸養成 ${others} / 21 隻`);
     const grown = list.filter(b => b.st === 4).length, temple = lvBy(grown, TEMPLE_TH);
     list[iS].foot = temple >= 2 ? GY - 18 : GY - 12;
     // 螭吻蹲在神獸殿屋脊左端；還是土地公小祠時蹲在小祠屋頂
@@ -1730,6 +1751,23 @@
   // ----- 神獸造型（60×60，面向右，腳在 y=58） -----
   const bEye = (x, y, r = 2.6) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#3a2f2a"/><circle cx="${x + r * .35}" cy="${y - r * .35}" r="${r * .35}" fill="#fff"/>`;
   const BEAST_ART = {
+    qiuniu: a => `<path d="M18 50 Q4 53 5 41 Q6 32 14 35" stroke="#c48a2e" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M5 41 l-4 -3 l5 -1Z" fill="#d8452f"/>
+      <ellipse cx="27" cy="43" rx="14" ry="13" fill="#d9a441"/><ellipse cx="31" cy="46" rx="8" ry="9" fill="#f6e2a8"/>
+      ${[40, 45, 50].map(y => `<path d="M25 ${y} q6 2 12 0" stroke="#e0c27a" stroke-width="1" fill="none"/>`).join("")}
+      <path d="M26 16 l-6 -4 l5 7 l-7 2 l7 3 l-5 4 l7 0" fill="#d8452f"/>
+      <ellipse cx="18" cy="56" rx="6" ry="3" fill="#c48a2e"/><ellipse cx="34" cy="56.5" rx="6" ry="3" fill="#c48a2e"/>
+      <circle cx="35" cy="22" r="11.5" fill="#d9a441"/><ellipse cx="45" cy="25.5" rx="8" ry="6" fill="#e9bd62"/><circle cx="50" cy="23.5" r=".9" fill="#7a4a1a"/>
+      <path d="M44 30 q3 1.5 6 0" stroke="#7a4a1a" stroke-width="1" fill="none"/>
+      <path d="M29 12 q-3 -7 1 -11 M29 8 l-3 -2 M33 11 q1 -7 6 -9 M35 6 l3 -1" stroke="#8a5a2b" stroke-width="2" fill="none" stroke-linecap="round"/>
+      ${bEye(38, 19, 2.4)}<path d="M41 15 q2 -2 4 0" stroke="#7a4a1a" stroke-width="1" fill="none"/>
+      <path d="M51 27 q5 2 8 7 M50 26 q5 -1 9 1" stroke="#c48a2e" stroke-width=".9" fill="none"/>
+      <ellipse cx="29" cy="29" rx="3" ry="2" fill="#f29b8a" opacity=".55"/>
+      <path d="M48 4 L45 49" stroke="#6b3a22" stroke-width="2"/><rect x="46" y="5" width="5" height="1.8" rx=".6" fill="#3a2414"/><rect x="45.5" y="9" width="5" height="1.8" rx=".6" fill="#3a2414"/>
+      <rect x="40" y="45" width="10" height="8" rx="2" fill="#6b3a22"/><rect x="41.5" y="46.5" width="7" height="5" rx="1" fill="#e8d6b4"/>
+      <path d="M47.5 6 L44.5 47" stroke="#f3ead8" stroke-width=".5"/>
+      <path d="M22 40 L58 34" stroke="#c9b27a" stroke-width="1.3"/><circle cx="24" cy="40" r="3.4" fill="#d9a441" stroke="#c48a2e" stroke-width=".8"/>
+      <circle cx="45" cy="30" r="3.2" fill="#d9a441" stroke="#c48a2e" stroke-width=".8"/>
+      ${a ? `<path d="M30 -2 q-2 -1 -1 3 M30 -2 v7 a2 2 0 1 1 -2 -1" stroke="#f2c230" stroke-width="1.4" fill="none"/>` : ""}`,
     chiwen: a => `<path d="M22 50 Q10 44 12 30 Q13 22 9 14" stroke="#2f9a86" stroke-width="9" fill="none" stroke-linecap="round"/>
       <path d="M9 15 Q2 8 1 2 Q7 5 10 10 Q11 3 17 1 Q15 8 13 15Z" fill="#4fb6d8" stroke="#2f86a8" stroke-width=".8"/>
       ${[[13, 40], [12, 32], [12, 24]].map(([x, y]) => `<path d="M${x - 3} ${y} q3 3 6 0" stroke="#bfe9dd" stroke-width="1" fill="none"/>`).join("")}
@@ -1983,6 +2021,95 @@
       s += `<path d="M${x} ${top + 8} l${i % 2 ? 10 : -10} -6 M${x} ${top + 22} l${i % 2 ? -9 : 9} -5" stroke="${col}" stroke-width="3" stroke-linecap="round"/>`; }
     return s;
   }
+  // ----- 廟口戲台（第五批）：累計「無犒賞日」6 級 -----
+  function stageSVG(lv, x0, w, lit, gold, winter, night){
+    const K = kit(lit, gold), cx = x0 + w / 2;
+    const BC = ["#ffd858", "#f6b6c8", "#9fd0e6", "#b7e08a", "#f0b26a", "#ffffff"];
+    // 看戲的小鳥：排在台前（面向戲台）
+    const crowd = (n, y = GY - 4, x1 = x0 + 18, gap = 15) => { for (let i = 0; i < n; i++) { const x = x1 + i * gap + (i % 2) * 2;
+      K.s += `<rect x="${x - 6}" y="${y + 2}" width="12" height="2" fill="#8a6236"/>` + K.bird(x, y - 4 - (i % 3), BC[i % BC.length]); } };
+    const bench = (x, y, wd) => `<rect x="${x}" y="${y}" width="${wd}" height="3" fill="#9a6a3a"/><rect x="${x + 2}" y="${y + 3}" width="2.5" height="${GY - y - 3}" fill="#7a5530"/><rect x="${x + wd - 4.5}" y="${y + 3}" width="2.5" height="${GY - y - 3}" fill="#7a5530"/>`;
+    const performer = (x, y, c1, c2) => `<ellipse cx="${x}" cy="${y}" rx="7" ry="8" fill="${c1}"/><path d="M${x - 7} ${y + 2} q7 10 14 0 v8 h-14Z" fill="${c2}"/><circle cx="${x + 2.5}" cy="${y - 3}" r="1.2" fill="#3a2f2a"/>
+      <path d="M${x + 6} ${y - 1} l4 1.3 l-4 1.3z" fill="#f08a24"/><path d="M${x - 4} ${y - 9} l2 -6 l2 4 l2 -5 l2 6Z" fill="#f2c230"/>`;
+    const curtain = (L, T, W, H) => `<rect x="${L}" y="${T}" width="${W}" height="${H}" fill="#7a1f17"/>`
+      + `<path d="M${L} ${T} q${W * .2} ${H * .55} 0 ${H} h${W * .24} q-${W * .06} -${H * .6} -${W * .24} -${H}Z M${L + W} ${T} q-${W * .2} ${H * .55} 0 ${H} h-${W * .24} q${W * .06} -${H * .6} ${W * .24} -${H}Z" fill="#c8432f"/>`
+      + `<path d="M${L} ${T} h${W} v5 ${Array.from({ length: Math.floor(W / 8) }, () => "q-2 4 -4 0 q-2 4 -4 0").join(" ")} Z" fill="#f2c230"/>`;
+    if (lv === 1) {   // 路邊說書：一張桌子、說書鳥拿扇子，旁邊幾張板凳
+      K.s += `<rect x="${cx - 4}" y="${GY - 40}" width="2" height="40" fill="#7a5530"/><path d="M${cx - 2} ${GY - 40} h18 v22 l-9 -4 l-9 4Z" fill="#c8432f"/>`
+        + txt(cx + 7, GY - 30, "說", 8, "#f6d77a", 700) + txt(cx + 7, GY - 21, "書", 8, "#f6d77a", 700)
+        + `<rect x="${cx - 30}" y="${GY - 18}" width="26" height="4" fill="#9a6a3a"/><rect x="${cx - 28}" y="${GY - 14}" width="3" height="14" fill="#7a5530"/><rect x="${cx - 9}" y="${GY - 14}" width="3" height="14" fill="#7a5530"/>
+        <rect x="${cx - 26}" y="${GY - 22}" width="8" height="4" rx="1" fill="#f3f0ea"/>` + performer(cx - 40, GY - 12, "#e9d7b0", "#3f7fb8")
+        + `<path d="M${cx - 33} ${GY - 14} l8 -8 a8 8 0 0 1 2 10Z" fill="#f6d77a" stroke="#b8860b" stroke-width=".6"/>`;
+      K.s += bench(x0 + 140, GY - 8, 34) + bench(x0 + 180, GY - 8, 26);
+      K.s += K.bird(x0 + 150, GY - 14, BC[0]) + K.bird(x0 + 164, GY - 14, BC[2]) + K.bird(x0 + 192, GY - 14, BC[1]);
+      if (gold) K.sign(cx + 50, GY - 42, 38, "說書");
+      return { s: K.s, l: K.l };
+    }
+    if (lv === 2) {   // 布袋戲台：彩繪木箱戲台、上面有戲偶
+      const L = cx - 46, W = 92, T = GY - 92;
+      K.s += `<rect x="${L}" y="${GY - 40}" width="${W}" height="40" fill="#b7382b"/><rect x="${L + 4}" y="${GY - 36}" width="${W - 8}" height="32" fill="#8a2a1f"/>`
+        + [0, 1, 2].map(i => `<circle cx="${L + 22 + i * 24}" cy="${GY - 20}" r="7" fill="#f2c230" opacity=".8"/>`).join("")
+        + `<rect x="${L}" y="${T}" width="${W}" height="52" fill="#d9a400"/><rect x="${L + 10}" y="${T + 14}" width="${W - 20}" height="34" fill="#2b5fb4"/>`
+        + curtain(L + 12, T + 16, W - 24, 30)
+        + `<path d="M${L - 6} ${T + 2} Q${cx} ${T - 22} ${L + W + 6} ${T + 2}Z" fill="#c8432f"/><path d="M${L - 6} ${T + 2} q-4 -3 -2 -9 M${L + W + 6} ${T + 2} q4 -3 2 -9" stroke="#c8432f" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+      K.sign(cx, T + 6, 52, "布袋戲");
+      // 兩尊戲偶在台口
+      K.s += `<g transform="translate(${cx - 16} ${GY - 50})"><circle r="6" fill="#f3d9b5"/><path d="M-6 -3 h12 l-2 -6 h-8Z" fill="#2b2b2b"/><path d="M-7 4 h14 l3 14 h-20Z" fill="#2f8f83"/></g>
+        <g transform="translate(${cx + 16} ${GY - 50})"><circle r="6" fill="#f3d9b5"/><path d="M-6 -2 l6 -9 l6 9Z" fill="#f2c230"/><path d="M-7 4 h14 l3 14 h-20Z" fill="#c8432f"/><path d="M8 6 l10 -10" stroke="#ddd" stroke-width="1.6"/></g>`;
+      K.s += bench(x0 + 6, GY - 8, 34);
+      K.s += K.bird(x0 + 14, GY - 14, BC[0]) + K.bird(x0 + 28, GY - 14, BC[3]);
+      if (winter) K.s += snowCap(`${L - 4},${T + 1} ${cx},${T - 9} ${L + W + 4},${T + 1}`);
+      return { s: K.s, l: K.l };
+    }
+    if (lv === 3) {   // 歌仔戲棚：竹竿搭的臨時戲棚、帆布棚頂
+      const L = cx - 64, W = 128, P = GY - 24, T = GY - 92;
+      K.s += `<rect x="${L}" y="${P}" width="${W}" height="24" fill="#6b4a2a"/>` + [0, 1, 2, 3].map(i => `<path d="M${L + 8 + i * 37} ${P + 2} l14 20 M${L + 22 + i * 37} ${P + 2} l-14 20" stroke="#8a6236" stroke-width="1.5"/>`).join("")
+        + `<rect x="${L}" y="${P - 3}" width="${W}" height="4" fill="#a87a44"/>`
+        + [L + 2, L + W - 6].map(x => `<rect x="${x}" y="${T}" width="4" height="${P - T}" fill="#c9b27a"/>`).join("")
+        + `<rect x="${L + 6}" y="${T + 14}" width="${W - 12}" height="${P - T - 14}" fill="#c8432f"/><circle cx="${cx}" cy="${T + 40}" r="16" fill="#f2c230" opacity=".9"/><circle cx="${cx}" cy="${T + 40}" r="10" fill="#c8432f"/>`
+        + `<path d="M${L - 8} ${T + 4} L${cx} ${T - 14} L${L + W + 8} ${T + 4}Z" fill="#3f7fb8"/>` + K.awning(L - 6, T + 2, W + 12, "#f3f0ea", "#3f7fb8");
+      K.sign(cx, T + 18, 52, "歌仔戲");
+      K.s += performer(cx - 24, P - 14, "#ffd858", "#d8352a") + performer(cx + 26, P - 14, "#f6b6c8", "#2f8f83");
+      K.s += `<path d="M${cx - 18} ${P - 22} q8 -6 14 2" stroke="#fff" stroke-width="2" fill="none"/>`;   // 水袖
+      crowd(3, GY - 4, x0 + 10, 14); crowd(2, GY - 4, x0 + w - 26, 14);
+      if (winter) K.s += snowCap(`${L - 6},${T + 3} ${cx},${T - 12} ${L + W + 6},${T + 3}`);
+      return { s: K.s, l: K.l };
+    }
+    // Lv4 起：固定的木造戲台（燕尾屋脊），台前坐滿看戲的小鳥
+    const two = lv >= 5, grand = lv >= 6;
+    const L = cx - (grand ? 82 : 70), W = grand ? 164 : 140, P = GY - 30, T = P - 52;
+    if (grand) {   // 大戲院：兩側廂房＋整排燈泡
+      K.s += [x0 + 2, x0 + w - 30].map(x => `<rect x="${x}" y="${GY - 58}" width="28" height="58" fill="#e9d7b0"/>${K.eave(x + 14, GY - 57, 28)}`).join("");
+      K.win(x0 + 9, GY - 44); K.win(x0 + w - 23, GY - 44);
+    }
+    if (two) {   // 第二層戲樓
+      K.s += `<rect x="${L + 22}" y="${T - 40}" width="${W - 44}" height="34" fill="#b7382b"/>${K.eave(cx, T - 39, W - 34)}`
+        + `<path d="M${L + 18} ${T - 51} H${L + W - 18}" stroke="#3d3d44" stroke-width="3"/><path d="M${L + 18} ${T - 51} q-8 -1 -10 -10 M${L + W - 18} ${T - 51} q8 -1 10 -10" stroke="#3d3d44" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+      K.win(L + 34, T - 30); K.win(L + W - 48, T - 30); K.win(cx - 7, T - 30);
+      if (winter) K.s += snowCap(`${L + 12},${T - 50} ${L + W - 12},${T - 50}`);
+    }
+    K.s += `<rect x="${L}" y="${P}" width="${W}" height="30" fill="#8a6236"/><rect x="${L}" y="${P}" width="${W}" height="5" fill="#b07a40"/>`
+      + Array.from({ length: Math.floor(W / 16) }, (_, i) => `<rect x="${L + 6 + i * 16}" y="${P + 9}" width="10" height="16" rx="1" fill="#6b4a2a"/>`).join("")
+      + `<rect x="${L + 4}" y="${T}" width="${W - 8}" height="${P - T}" fill="#7a1f17"/>` + curtain(L + 12, T + 6, W - 24, P - T - 6)
+      + [L + 4, L + W - 12].map(x => `<rect x="${x}" y="${T}" width="8" height="${P - T}" fill="#c8432f"/><rect x="${x}" y="${P - 6}" width="8" height="6" fill="#d9a400"/>`).join("")
+      + `<rect x="${L - 2}" y="${T - 6}" width="${W + 4}" height="8" fill="#d9a400"/>` + K.eave(cx, T - 5, W + 4)
+      + `<path d="M${L - 6} ${T - 17} H${L + W + 6}" stroke="#3d3d44" stroke-width="3"/><path d="M${L - 6} ${T - 17} q-10 -1 -12 -12 M${L + W + 6} ${T - 17} q10 -1 12 -12" stroke="#3d3d44" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    K.sign(cx, T - (two ? 16 : 22) + (two ? 0 : 0), grand ? 58 : 42, grand ? "大戲院" : two ? "戲樓" : "戲台", "#3d3d44");
+    K.s += performer(cx - 22, P - 10, "#ffd858", "#d8352a") + performer(cx + 22, P - 10, "#f6b6c8", "#2b5fb4");
+    if (winter) K.s += snowCap(`${L - 4},${T - 16} ${L + W + 4},${T - 16}`);
+    K.lantern(L + 10, T + 2); K.lantern(L + W - 10, T + 2);
+    // 台前觀眾席（板凳＋小鳥）
+    const nB = grand ? 11 : two ? 10 : 8;
+    crowd(nB, GY - 3, cx - (nB - 1) * 7.5, 15);
+    if (grand) {
+      const bulbs = Array.from({ length: 15 }, (_, i) => [L + 4 + i * (W - 8) / 14, T - 2]);
+      bulbs.forEach(([x, y]) => K.s += `<circle cx="${x}" cy="${y}" r="1.8" fill="${lit ? "#fff3b0" : "#e8e0c8"}"/>`);
+      if (lit) bulbs.forEach(([x, y], i) => K.l += `<circle cx="${x}" cy="${y}" r="5" fill="#ffd27a" opacity=".35"/><circle cx="${x}" cy="${y}" r="1.8" fill="#fff3b0" class="${i % 3 ? "" : "twinkle"}"/>`);
+      if (lit) K.l += `<ellipse cx="${cx}" cy="${P - 20}" rx="${W * .42}" ry="28" fill="#ffd27a" opacity=".16"/>`;
+    }
+    return { s: K.s, l: K.l };
+  }
+
   function templeSVG(lv, x0, w, lit, fest, winter){
     const K = kit(lit, false), cx = x0 + w / 2;
     let s = "";
@@ -2301,6 +2428,12 @@
       const [x0, w] = PLOT.temple;
       const r = templeSVG(m.temple, x0, w, night || m.time === "dusk", m.fest, winter); s += r.s; lights += r.l;
     }
+    // 廟口戲台：累計沒花犒賞錢的記帳日
+    {
+      const [x0, w] = PLOT.stage;
+      if (!m.stage) s += lockedPlot(x0, w, "廟口戲台", `無犒賞記帳日 ${m.stageN} / 20 天`);
+      else { const r = stageSVG(m.stage, x0, w, night || m.time === "dusk", m.stageSave, winter, night); s += r.s; lights += r.l; }
+    }
 
     // 紅燈籠：守住預算一個月掛一盞
     if (m.lanterns) {
@@ -2355,6 +2488,9 @@
     if (k === "school") return (m.school ? `📚 學堂 Lv ${m.school}「${SCHOOL_NAMES[m.school - 1]}」：看過月報表的月份 ${m.schoolN} 個月`
       + (m.school < 4 ? `。滿 ${M_TH.school[m.school]} 個月變成「${SCHOOL_NAMES[m.school]}」` : "。滿級了，白澤也長成了吧 📜")
       : "📚 學堂：打開一次「📊 月報表」就會蓋好私塾") + "。每個月打開一次「📊 月報表」就算一個月";
+    if (k === "stage") return (m.stage ? `🎭 廟口戲台 Lv ${m.stage}「${STAGE_NAMES[m.stage - 1]}」：累計 ${m.stageN} 天沒花犒賞錢` + (m.stage < 6 ? `，滿 ${M_TH.stage[m.stage]} 天變成「${STAGE_NAMES[m.stage]}」` : "，滿級了，大戲院天天有戲 🏮")
+        : `🎭 廟口戲台：累計 20 天「有記帳、但沒花犒賞錢」就會開張（目前 ${m.stageN} 天）`)
+      + (m.stageSave ? "。這個月犒賞比上個月同期省，招牌發金光 ✨" : "") + "。犒賞＝購物、娛樂這類買給自己開心的花費，少花一點戲台就會長大";
     if (k === "herb") return (m.herb ? `🌿 藥草園 Lv ${m.herb}「${HERB_NAMES[m.herb - 1]}」：累計省錢日 ${m.herbN} 天` + (m.herb < 5 ? `，滿 ${M_TH.herb[m.herb]} 天變成「${HERB_NAMES[m.herb]}」` : "，滿級了，百草園開張！")
         : `🌿 藥草園：累計 10 個省錢日就會長出藥草（目前 ${m.herbN} 天）`)
       + `。${m.herbB ? `彩蛋已長出「${HERBB_NAMES[m.herbB - 1]}」（養生日 ${m.herbBN} 天` + (m.herbB < 4 ? `，滿 ${M_TH.herbB[m.herbB]} 天長出${HERBB_NAMES[m.herbB]}）` : "，滿級 ✨）") : `養生日 ${m.herbBN} / 10 天會長出小人參`}`
@@ -2546,6 +2682,7 @@
       box.innerHTML = show.map((b, i) => { const md = beastMode(b, m);
         return `<div class="beast${b.st === 1 ? " egg" : ""}${b.st === 4 ? " grown" : ""}${b.far && md !== "nianfest" ? " far" : ""}${md ? " " + md : ""}" data-b="${b.id}"${md ? ` data-mode="${md}"` : ""}${b.st === 1 ? ` style="--wd:${(-i * 1.37 % 6).toFixed(2)}s"` : ""} role="button" aria-label="${b.name}">`
         + (b.id === "rooster" && b.st === 4 && crow ? `<span class="bsay">喔喔喔～</span>` : "")
+        + (b.id === "qiuniu" && b.st === 4 ? `<span class="bsay qnote">🎵</span>` : "")
         + (md === "nianfest" ? `<span class="nbang">🧨💥 砰！</span>` : "")
         + `<div class="bflip">${beastSVG(b, b.st)}</div></div>`; }).join("");
     }
@@ -2587,22 +2724,22 @@
   function chatCtx(){
     const entries = [...state.entries.values()], g = computeGame(), m = manorNow;
     const t = todayStr(), ym = t.slice(0, 7), day = +t.slice(8), [y, mo] = ym.split("-").map(Number), pm = mo === 1 ? `${y - 1}-12` : `${y}-${pad(mo - 1)}`;
-    const cmp = cat => { let cur = 0, prev = 0; entries.forEach(e => { if (e.type !== "expense" || e.cat !== cat || !e.date) return;
+    const cmp = cat => { let cur = 0, prev = 0; entries.forEach(e => { if (e.type !== "expense" || catKey(e.cat) !== cat || !e.date) return;
       if (e.date.startsWith(ym)) cur += e.amount; else if (e.date.startsWith(pm) && +e.date.slice(8) <= day) prev += e.amount; }); return [cur, prev]; };
-    let morning = 0, night = 0, inc = 0, notes = 0, trans = 0, exp = 0, drink = 0; const days = new Set(), cats = new Set(), rDays = new Set(), dDays = new Set();
+    let morning = 0, night = 0, inc = 0, notes = 0, trans = 0, exp = 0, drink = 0; const days = new Set(), cats = new Set(), rDays = new Set(), dDays = new Set(), tDays = new Set();
     entries.forEach(e => {
-      if (e.type === "expense") cats.add(e.cat);
+      if (e.type === "expense") cats.add(catKey(e.cat));
       if (!e.rec && e.note && String(e.note).trim()) notes++;
       if (!e.date || !e.date.startsWith(ym)) return;
       days.add(e.date);
       if (e.type === "income") inc += e.amount;
-      if (e.type === "expense") { if (!e.oneoff) exp += e.amount; if (e.cat === "交通") trans++; if (e.cat === "飲料") { drink += e.amount; if (!e.rec) dDays.add(e.date); } }
+      if (e.type === "expense") { if (!e.oneoff) exp += e.amount; if (e.cat === "交通") trans++; if (e.cat === "飲料") { drink += e.amount; if (!e.rec) dDays.add(e.date); } if (isTreat(e)) tDays.add(e.date); }
       if (!e.rec) rDays.add(e.date);
       if (!e.rec && e.createdAt) { const h = new Date(e.createdAt).getHours(); if (h < 9) morning++; if (h >= 21) night++; }
     });
     return { g, m, food: cmp("餐飲"), shop: cmp("購物"), morning, night, inc, notes, trans, exp, days: days.size, nCat: Math.min(9, cats.size),
       total: entries.length, saved: m.saved, seen: state.seen.length, seenThis: state.seen.includes(ym), today: entries.filter(e => e.date === t).length,
-      left: state.budget > 0 ? state.budget - exp : null, name: state.petName, drink, noDrink: [...rDays].filter(d => !dDays.has(d)).length };
+      left: state.budget > 0 ? state.budget - exp : null, name: state.petName, drink, noDrink: [...rDays].filter(d => !dDays.has(d)).length, treat: tDays.size };
   }
   const lessTxt = ([cur, prev], what) => prev > 0 && cur < prev ? `這個月${what}比上個月同期少 ${fmt(prev - cur)}！` : prev > 0 ? `這個月${what}比上個月同期多了 ${fmt(cur - prev)}…` : `這個月${what}記了 ${fmt(cur)}`;
   // 每隻神獸自己最愛聊的話題（帶入真實的帳）
@@ -2615,20 +2752,21 @@
     toad: c => c.inc ? `這個月收入記了 ${fmt(c.inc)}，招財成功 🐸` : "這個月還沒記收入，我再招一招！",
     taotie: c => lessTxt(c.food, "吃的"),
     baize: c => c.seenThis ? "這個月的月報表看過了，好認真 📜" : "這個月的月報表還沒打開喔",
-    tiger: c => lessTxt(c.shop, "購物"),
+    tiger: c => lessTxt(c.shop, "犒賞"),
     koi: c => `這個月已經記帳 ${c.days} 天了，全勤就跳龍門！`,
     xiezhi: c => `有寫備註的帳 ${c.notes} 筆，每筆都清清楚楚`,
     rooster: c => `這個月早上記了 ${c.morning} 筆，喔喔喔～`,
     crane: c => `總共記了 ${c.total} 筆了，長長久久～`,
     tianma: c => `這個月交通記了 ${c.trans} 筆，跑得比公車快！`,
     suanni: c => `神獸殿已經有 ${c.m.grown} 隻神獸了，香火好旺 🏮`,
-    chiwen: c => `這個月 ${c.noDrink} 天沒喝飲料，水最好喝 💧`
+    chiwen: c => `這個月 ${c.noDrink} 天沒喝飲料，水最好喝 💧`,
+    qiuniu: c => c.treat ? `這個月才犒賞 ${c.treat} 天，我拉一首給你聽 🎵` : "這個月一天都沒犒賞，我拉一首最好聽的 🎵"
   };
   const REPLY = ["真的假的！好厲害", "我也要努力！", "主人好棒 ✨", "嗯嗯，繼續保持～", "那我們一起加油！", "聽起來不錯耶 👍"];
   const pick = a => a[Math.floor(Math.random() * a.length)];
   // 固定配對的對話（a、b 是神獸 id；每句 [誰, 說什麼]）
   const PAIRS = [
-    ["taotie", "tiger", c => [["a", TOPIC.taotie(c)], ["b", c.shop[1] > 0 && c.shop[0] < c.shop[1] ? `我這邊購物也少了 ${fmt(c.shop[1] - c.shop[0])} 🐯` : "購物我會幫主人看緊的 🐯"], ["a", "省下來的都存進糧倉吧！"]]],
+    ["taotie", "tiger", c => [["a", TOPIC.taotie(c)], ["b", c.shop[1] > 0 && c.shop[0] < c.shop[1] ? `我這邊犒賞也少了 ${fmt(c.shop[1] - c.shop[0])} 🐯` : "犒賞錢我會幫主人看緊的 🐯"], ["a", "省下來的都存進糧倉吧！"]]],
     ["turtle", "jingwei", c => [["a", TOPIC.turtle(c)], ["b", `我最長陪主人記了 ${c.g.best} 天！`], ["a", "堅持下去，海也填得平 🌊"]]],
     ["pixiu", "toad", c => [["a", TOPIC.pixiu(c)], ["b", TOPIC.toad(c)], ["a", "錢錢進來，就不要讓它跑掉喔"]]],
     ["baize", "xiezhi", c => [["a", TOPIC.baize(c)], ["b", TOPIC.xiezhi(c)], ["a", "知道錢花去哪，就不怕亂花"]]],
@@ -2639,6 +2777,8 @@
     ["rooster", "pixiu", c => [["a", `早上記 ${c.morning} 筆、晚上記 ${c.night} 筆，${c.morning >= c.night ? "早上贏！" : "晚上贏了…"}`], ["b", "什麼時候記都好，有記最重要 💰"]]],
     ["suanni", "kirin", c => [["a", TOPIC.suanni(c)], ["b", "我也想去上香～"]]],
     ["jingwei", "koi", c => [["a", TOPIC.jingwei(c)], ["b", TOPIC.koi(c)]]],
+    ["qiuniu", "chiwen", c => [["a", TOPIC.qiuniu(c)], ["b", TOPIC.chiwen(c)], ["a", "大哥管玩、九弟管喝，主人的荷包我們兄弟顧 🎵"], ["b", "哥，你拉琴我在屋脊上聽得到 💧"]]],
+    ["qiuniu", "tiger", c => [["a", TOPIC.qiuniu(c)], ["b", TOPIC.tiger(c)], ["a", "不花錢也能聽戲，最划算 🎵"]]],
     ["chiwen", "kirin", c => [["a", TOPIC.chiwen(c)], ["b", c.drink ? `這個月飲料花了 ${fmt(c.drink)}，喝水省好多～` : "這個月一杯飲料都沒買耶！"], ["a", "饕餮管吃，我管喝 💧"]]]
   ];
   const baby = (b, t) => b && b.st === 2 ? t.replace(/我/g, "偶").replace(/[。！]$/, "") + "～" : t;
@@ -2671,12 +2811,13 @@
     const all = [...$("beasts").querySelectorAll(".beast")].map(el => ({ el, b: m.beasts.find(x => x.id === el.dataset.b) }));
     const inView = el => { const r = el.getBoundingClientRect(); return r.right > 20 && r.left < innerWidth - 20 && r.bottom > 0 && r.top < innerHeight; };
     // 飛過的鯤鵬、繞廟的神龍、月亮上的玉兔：只冒一句
-    const flyers = all.filter(({ el, b }) => b.st >= 2 && (el.dataset.mode === "kunfly" || el.dataset.mode === "orbit" || b.id === "rabbit" || b.id === "chiwen") && inView(el));
+    const flyers = all.filter(({ el, b }) => b.st >= 2 && (el.dataset.mode === "kunfly" || el.dataset.mode === "orbit" || b.id === "rabbit" || b.id === "chiwen" || b.id === "qiuniu") && inView(el));
     if (flyers.length && Math.random() < .35) {
       const { el, b } = pick(flyers);
       const L = { kun: ["底下的莊園越來越大了！🐋", `糧倉 ${fmt(c.saved)}，我要飛更高～`], dragon: ["神獸殿的香火好旺 🐉", `已經有 ${m.grown} 隻神獸了！`],
         rabbit: [`這個月晚上記了 ${c.night} 筆 🌙`, "今晚也記帳了嗎？", "月亮上看得到整座莊園喔"],
-        chiwen: [TOPIC.chiwen(c), "饕餮管吃，我管喝 💧", c.drink ? `這個月飲料 ${fmt(c.drink)}，少喝一杯就省一杯` : "屋頂上風好大，喝口水 💧"] }[b.id];
+        chiwen: [TOPIC.chiwen(c), "饕餮管吃，我管喝 💧", c.drink ? `這個月飲料 ${fmt(c.drink)}，少喝一杯就省一杯` : "屋頂上風好大，喝口水 💧"],
+        qiuniu: [TOPIC.qiuniu(c), "戲台上的戲最好看，而且免費 🎭", "我是龍的大哥，最愛聽戲 🎵"] }[b.id];
       const t = baby(b, pick(L)); el.dataset.mode === "orbit" ? freeBubble(el, t) : bubble(el, t, 3600); return true;
     }
     const ok = ({ el, b }) => b.st >= 2 && b.home && !b.fly && b.id !== "rabbit" && b.id !== "nian" && !el.dataset.mode && !el.dataset.chat && !el.classList.contains("walking");
@@ -2758,7 +2899,7 @@
       <div class="bs-top"><b>${b.name}</b><span class="bs-st">${b.id === "phoenix" && !b.st ? "還在長大" : B_STAGE[b.st]}</span></div>
       <div class="bs-line">${esc(b.line)}</div><span class="xpbar"><i style="width:${(b.p * 100).toFixed(1)}%"></i></span>
       <div class="bs-where">🏡 ${esc(b.where)}</div></div></div>`).join("")
-      + `<p class="bs-more">${m.grown >= 21 ? "🐉 二十一隻神獸全員到齊，神龍繞著神獸殿飛！" : "長成 20 隻之後，神龍會降臨神獸殿 🐉"}</p>`;
+      + `<p class="bs-more">${m.grown >= 22 ? "🐉 二十二隻神獸全員到齊，神龍繞著神獸殿飛！" : "長成 21 隻之後，神龍會降臨神獸殿 🐉"}</p>`;
     openSheet($("bsSheet"));
   }
 
@@ -2776,8 +2917,8 @@
   $("homeClose").onclick = closeHome;
   addEventListener("keydown", e => { if (e.key === "Escape" && homeOpen && !openSheetEl && !reportOpen) closeHome(); }, true);
 
-  const NB = 10;   // manorLevels 裡神獸從第幾個開始（前面是建築）
-  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary, m.food, m.shop, m.station, m.market, m.school, m.herb, m.herbB, ...m.beasts.map(b => b.st)]; };
+  const NB = 11;   // manorLevels 裡神獸從第幾個開始（前面是建築）
+  const manorLevels = () => { const m = manorState(computeGame()); return [m.field, m.pond, m.granary, m.food, m.shop, m.station, m.market, m.school, m.herb, m.herbB, m.stage, ...m.beasts.map(b => b.st)]; };
   function manorNews(a, b){
     const iB = BEASTS.findIndex(x => x.id === "baize");
     // 第一次看月報表：私塾開張，白澤的蛋也一起出現在學堂
@@ -2789,6 +2930,7 @@
     if (b[6] > a[6]) return a[6] ? `🛒 市集升級成「${MARKET_NAMES[b[6] - 1]}」了！${b[6] === 4 ? "晚上記得來逛 🏮" : "往右滑去看看 🎉"}` : "🛒 市集開張了！就在糧倉旁邊 🎉";
     if (b[7] > a[7]) return `📚 學堂升級成「${SCHOOL_NAMES[b[7] - 1]}」了！往右滑去看看 🎉`;
     if (b[8] > a[8]) return a[8] ? `🌿 藥草園升級成「${HERB_NAMES[b[8] - 1]}」了！往右滑去看看 🎉` : "🌿 藥草園長出第一批藥草了！就在學堂旁邊 🎉";
+    if (b[10] > a[10]) return a[10] ? `🎭 廟口戲台升級成「${STAGE_NAMES[b[10] - 1]}」了！${b[10] === 6 ? "晚上記得來看戲 🏮" : "往右滑去看看 🎉"}` : "🎭 廟口戲台開張了（路邊說書）！就在神獸殿旁邊 🎉";
     if (b[9] > a[9]) return `🌱 藥草園長出${HERBB_NAMES[b[9] - 1]}了！${b[9] === 4 ? "還會發光 ✨" : "養生有成 🎉"}`;
     if (b[4] > a[4]) return a[4] ? `🧴 小錢雜貨店升級成「${SHOP_NAMES[b[4] - 1]}」了！往右滑去看看 🎉` : "🧴 小錢雜貨店開張了！就在食堂旁邊 🎉";
     if (b[5] > a[5]) return a[5] ? `🚉 小錢驛站升級成「${STATION_NAMES[b[5] - 1]}」了！往右滑去看看 🎉` : "🚉 小錢驛站蓋好了！就在雜貨店旁邊 🎉";
@@ -2851,7 +2993,7 @@
     // categories
     const t = state.catTab;
     const byCat = {};
-    list.filter(e => e.type === t && !e.oneoff).forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + e.amount);
+    list.filter(e => e.type === t && !e.oneoff).forEach(e => { const c = catKey(e.cat); byCat[c] = (byCat[c] || 0) + e.amount; });
     const total = Object.values(byCat).reduce((a, b) => a + b, 0);
     const rows = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
     const max = rows.length ? rows[0][1] : 1;
@@ -2865,7 +3007,7 @@
 
     // list
     const q = state.q.trim().toLowerCase();
-    const shown = list.filter(e => !q || (e.note || "").toLowerCase().includes(q) || catName(e.cat).includes(q) || e.cat.includes(q))
+    const shown = list.filter(e => !q || (e.note || "").toLowerCase().includes(q) || catWords(e.cat).includes(q))
       .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
     $("count").textContent = shown.length ? `${shown.length} 筆` : "";
     if (!shown.length) {
@@ -2923,6 +3065,7 @@
     $("oneoffRow").hidden = form.type !== "expense";
     $("savHint").hidden = form.type !== "saving" || !$("recHint").hidden;
     $("lifeHint").hidden = !(form.type === "expense" && form.cat === "日用");
+    $("treatHint").hidden = !(form.type === "expense" && form.cat === "購物");
     updateHint();
     $("catPick").innerHTML = CATS[form.type].map(([c, em]) =>
       `<button data-c="${c}" class="${c === form.cat ? "on" : ""}"><b>${em}</b>${catName(c)}</button>`).join("");
@@ -2947,7 +3090,7 @@
     disarm();
     $("err").textContent = "";
     if (entry) {
-      Object.assign(form, { id: entry.id, type: entry.type, cat: entry.cat });
+      Object.assign(form, { id: entry.id, type: entry.type, cat: catKey(entry.cat) });
       $("oneoff").checked = !!entry.oneoff;
       $("amt").value = entry.amount; $("date").value = entry.date; $("note").value = entry.note || "";
       $("sheetTitle").textContent = "編輯紀錄"; $("delBtn").hidden = false;
@@ -3064,7 +3207,7 @@
     const recSum = exp.filter(e => e.rec).reduce((s, e) => s + e.amount, 0);
     const sum = a => a.reduce((s, e) => s + e.amount, 0);
     const byCat = {};
-    exp.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + e.amount);
+    exp.forEach(e => { const c = catKey(e.cat); byCat[c] = (byCat[c] || 0) + e.amount; });
     const daysIn = new Date(y, m, 0).getDate();
     const daily = Array.from({ length: daysIn }, () => ({ amt: 0, n: 0 }));
     exp.forEach(e => { const d = +e.date.slice(8, 10); if (daily[d - 1]) { daily[d - 1].amt += e.amount; daily[d - 1].n++; } });
@@ -3307,7 +3450,7 @@
     return rows.slice(1).map(l => { const [date, type, cat, amount, note, one] = splitRow(l);
       const key = [date, type, cat, amount, note].join("|"); seen[key] = (seen[key] || 0) + 1;
       return { id: hashId(key + "#" + seen[key]), date: (date || "").trim(), type: type === "收入" ? "income" : type === "存錢" ? "saving" : "expense",
-        cat: ((cat || "其他").trim() === "生活" ? "日用" : (cat || "其他").trim()), amount: Number(amount), note: note || "", oneoff: one === "是", createdAt: Date.parse(date + "T12:00:00") || Date.now() }; });
+        cat: (c => c === "生活" ? "日用" : c === "犒賞" ? "購物" : c)((cat || "其他").trim()), amount: Number(amount), note: note || "", oneoff: one === "是", createdAt: Date.parse(date + "T12:00:00") || Date.now() }; });
   }
   function parseBackup(raw){
     const text = String(raw || "").replace(/^﻿/, "").trim();
@@ -3511,7 +3654,7 @@
     if (readOnly) { toast("目前為唯讀"); return; }
     closeSheet();
     $("reErr").textContent = ""; disarmRe();
-    rForm.id = r ? r.id : null; rForm.kind = r && r.kind === "saving" ? "saving" : "expense"; rForm.cat = r ? r.cat : "居住";
+    rForm.id = r ? r.id : null; rForm.kind = r && r.kind === "saving" ? "saving" : "expense"; rForm.cat = r ? catKey(r.cat) : "居住";
     $("reAmt").value = r ? r.amount : ""; $("reName").value = r ? r.name : "";
     $("reDay").value = r ? r.day : Math.min(new Date().getDate(), 31);
     $("reNow").checked = false; $("rePause").checked = r ? !!r.paused : false;
